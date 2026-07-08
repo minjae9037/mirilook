@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>미리룩</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      background: linear-gradient(160deg, #fff0f5 0%, #ffe4ef 55%, #ffd6e8 100%);
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    }
+    .wrap {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+    }
+    .logo {
+      font-size: 44px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #e5478a;
+      text-shadow: 0 2px 12px rgba(229, 71, 138, 0.18);
+    }
+    .tagline {
+      font-size: 14px;
+      color: #b06183;
+    }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(229, 71, 138, 0.2);
+      border-top-color: #e5478a;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo">미리룩</div>
+    <div class="tagline">AI 헤어 스타일, 미리 봅니다</div>
+    <div class="spinner" role="status" aria-label="loading"></div>
+  </div>
+</body>
+</html>

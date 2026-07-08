@@ -1,0 +1,11 @@
+{
+  "country": "us",
+  "enabled": true,
+  "defaultLocale": "en",
+  "storeName": "Mirilook",
+  "appId": "com.mirilook.us",
+  "distribution": ["google-play", "app-store"],
+  "paymentProvider": "store-iap",
+  "aiBackend": "openai",
+  "storeLocale": "en-US"
+}

@@ -11,6 +11,8 @@
     "build:web": "npm --workspace apps/web run build",
     "lint:web": "npm --workspace apps/web run lint",
     "verify:web": "npm --workspace apps/web run lint && npm --workspace apps/web run build",
-    "deploy:mirilook": "powershell -ExecutionPolicy Bypass -File scripts/deploy-mirilook.ps1"
+    "deploy:mirilook": "powershell -ExecutionPolicy Bypass -File scripts/deploy-mirilook.ps1",
+    "mobile:sync": "npm --workspace apps/mobile run sync",
+    "mobile:build": "npm --workspace apps/mobile run build:country --"
   }
 }

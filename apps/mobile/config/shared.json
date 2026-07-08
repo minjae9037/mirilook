@@ -1,0 +1,7 @@
+{
+  "appName": "미리룩",
+  "productName": "Mirilook",
+  "webUrl": "https://mirilook.com",
+  "bundleIdPrefix": "com.mirilook",
+  "aiBackend": "openai"
+}

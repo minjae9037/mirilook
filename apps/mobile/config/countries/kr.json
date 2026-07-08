@@ -1,0 +1,11 @@
+{
+  "country": "kr",
+  "enabled": true,
+  "defaultLocale": "ko",
+  "storeName": "미리룩",
+  "appId": "com.mirilook.app",
+  "distribution": ["google-play", "app-store"],
+  "paymentProvider": "portone",
+  "aiBackend": "openai",
+  "storeLocale": "ko-KR"
+}

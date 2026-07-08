@@ -1,0 +1,130 @@
+# =============================================================================
+# codemagic.yaml — 미리룩 모바일 클라우드 빌드 (Codemagic CI/CD)
+# =============================================================================
+# 핵심: 이 파일이 있으면 로컬 PC에 Mac / Xcode / JDK / Android SDK가 하나도
+# 없어도 됩니다. Codemagic이 클라우드에서 리눅스(안드로이드)·맥(iOS) 빌드
+# 머신을 제공하므로, Windows에서 git push만 하면 AAB와 IPA가 만들어집니다.
+#
+# 시크릿은 절대 이 파일에 직접 쓰지 않습니다. Codemagic 웹 콘솔의
+# Environment variable "그룹"(google_play / app_store_credentials)에 등록하고
+# 여기서는 $변수명 참조만 합니다.
+# =============================================================================
+
+workflows:
+  # ---------------------------------------------------------------------------
+  # [1] Android — 한국(kr) 릴리스 AAB
+  # ---------------------------------------------------------------------------
+  # 일본/미국 버전이 필요하면 이 워크플로 블록을 통째로 복사해서
+  #   - 워크플로 키: android-jp / android-us
+  #   - MIRILOOK_COUNTRY: jp / us
+  #   - PACKAGE_NAME: com.mirilook.jp / com.mirilook.us
+  #   - gradlew 태스크: bundleJpRelease / bundleUsRelease
+  # 네 군데만 바꾸면 됩니다 (build.gradle의 productFlavors kr/jp/us와 1:1 대응).
+  # ---------------------------------------------------------------------------
+  android-kr:
+    name: Android KR release (com.mirilook.app)
+    instance_type: linux_x2          # 안드로이드는 리눅스 머신이면 충분 (JDK/SDK 사전 설치됨)
+    max_build_duration: 60
+    environment:
+      groups:
+        - google_play                # Codemagic 콘솔에 만들 그룹. 내용:
+                                     #   GCLOUD_SERVICE_ACCOUNT_CREDENTIALS = Play Console 서비스계정 JSON 전체
+                                     #   CM_KEYSTORE / CM_KEYSTORE_PASSWORD / CM_KEY_ALIAS / CM_KEY_PASSWORD
+                                     #   (업로드 키스토어를 base64로 넣거나, Codemagic의 Code signing
+                                     #    identities 메뉴에 키스토어를 업로드해 참조해도 됩니다)
+      vars:
+        MIRILOOK_COUNTRY: "kr"       # capacitor.config.ts가 이 값으로 국가별 appId/appName 결정
+        PACKAGE_NAME: "com.mirilook.app"
+      node: 20
+      java: 17
+    scripts:
+      - name: npm 의존성 설치 (모노레포 루트)
+        script: |
+          npm ci
+      - name: Capacitor 웹 자산/플러그인 동기화 (android)
+        script: |
+          cd apps/mobile
+          npx cap sync android
+      - name: Gradle 릴리스 AAB 빌드 (kr 플레이버)
+        script: |
+          cd apps/mobile/android
+          chmod +x ./gradlew
+          ./gradlew bundleKrRelease
+    artifacts:
+      # 빌드 결과물(.aab)을 Codemagic 빌드 페이지에서 바로 내려받을 수 있게 보존
+      - apps/mobile/android/app/build/outputs/**/*.aab
+      - apps/mobile/android/app/build/outputs/**/mapping.txt
+    publishing:
+      google_play:
+        # Play Console에서 만든 서비스 계정 JSON (google_play 그룹의 환경변수 참조)
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal              # 처음엔 internal(내부 테스트) 권장 → 검증 후 production으로 변경
+        submit_as_draft: true        # 앱 최초 등록 전(스토어 등록정보 미완성)에는 draft로만 업로드 가능
+
+  # ---------------------------------------------------------------------------
+  # [2] iOS — 릴리스 IPA + TestFlight 업로드
+  # ---------------------------------------------------------------------------
+  # ★ Windows PC에서 iOS를 "로컬"로 빌드하는 것은 불가능하지만(Xcode는 macOS 전용),
+  #   아래 instance_type: mac_mini_m2 가 Codemagic이 빌려주는 클라우드 Mac입니다.
+  #   즉 Mac을 소유하지 않아도 iOS 빌드/서명/업로드가 전부 클라우드에서 끝납니다.
+  #   필요한 것은 Apple Developer Program 멤버십($99/년)과 아래 API 키 4개뿐입니다.
+  # ---------------------------------------------------------------------------
+  ios-release:
+    name: iOS release (com.mirilook.app)
+    instance_type: mac_mini_m2       # Codemagic 클라우드 Mac (Xcode/CocoaPods 사전 설치)
+    max_build_duration: 90
+    environment:
+      groups:
+        - app_store_credentials      # Codemagic 콘솔에 만들 그룹. 내용(4개):
+                                     #   APP_STORE_CONNECT_ISSUER_ID       = ASC API 키의 Issuer ID
+                                     #   APP_STORE_CONNECT_KEY_IDENTIFIER  = ASC API 키 ID (예: ABC123XYZ)
+                                     #   APP_STORE_CONNECT_PRIVATE_KEY     = .p8 파일 내용 전체
+                                     #   CERTIFICATE_PRIVATE_KEY           = 배포 인증서용 RSA 개인키(PEM)
+                                     # 이 4개만 있으면 아래 fetch-signing-files가 인증서/프로비저닝
+                                     # 프로파일을 "자동으로" 만들고 내려받습니다 (수동 서명 작업 불필요).
+      vars:
+        MIRILOOK_COUNTRY: "kr"
+        BUNDLE_ID: "com.mirilook.app"
+        XCODE_WORKSPACE: "apps/mobile/ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+      node: 20
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: npm 의존성 설치 (모노레포 루트)
+        script: |
+          npm ci
+      - name: Capacitor 웹 자산/플러그인 동기화 (ios)
+        script: |
+          cd apps/mobile
+          npx cap sync ios
+      - name: CocoaPods 설치
+        script: |
+          cd apps/mobile/ios/App
+          pod install
+      - name: 자동 코드사이닝 준비 (App Store Connect API 키 기반)
+        script: |
+          # keychain/인증서/프로비저닝 프로파일을 클라우드 Mac 안에서 자동 구성.
+          # APP_STORE_CONNECT_* 환경변수(app_store_credentials 그룹)를 자동으로 읽습니다.
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: IPA 빌드
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        # 위와 동일한 ASC API 키로 TestFlight/App Store Connect 업로드
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true   # 업로드 후 TestFlight 내부 테스트로 자동 배포
+        # submit_to_app_store: true  # 심사 제출까지 자동화하려면 주석 해제 (스토어 등록정보 완성 후)

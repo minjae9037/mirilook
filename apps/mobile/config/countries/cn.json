@@ -1,0 +1,19 @@
+{
+  "country": "cn",
+  "enabled": false,
+  "defaultLocale": "zh",
+  "storeName": "美映预览",
+  "appId": "com.mirilook.cn",
+  "distribution": ["android-cn-stores", "app-store-cn"],
+  "paymentProvider": "alipay-wechat",
+  "aiBackend": "TODO-domestic-model",
+  "storeLocale": "zh-CN",
+  "blockers": [
+    "google-play-unavailable-in-china",
+    "openai-blocked-needs-domestic-model",
+    "icp-license-required",
+    "pipl-data-localization",
+    "genai-algorithm-filing"
+  ],
+  "note": "중국은 별도 트랙입니다. 구글플레이 미운영(화웨이/샤오미/텐센트 등 안드로이드 대체 스토어 필요), OpenAI 차단(중국 내 합법 생성형 모델로 교체 필요), ICP 허가, PIPL 데이터 현지화, 생성형 AI 알고리즘 비안(备案) 등 규제+엔진 이슈가 모두 해결되어야 enabled를 true로 전환할 수 있습니다. 중국 법인(또는 현지 파트너)도 사실상 필수입니다."
+}

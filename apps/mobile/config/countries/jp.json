@@ -1,0 +1,11 @@
+{
+  "country": "jp",
+  "enabled": true,
+  "defaultLocale": "ja",
+  "storeName": "ミリルック",
+  "appId": "com.mirilook.jp",
+  "distribution": ["google-play", "app-store"],
+  "paymentProvider": "store-iap",
+  "aiBackend": "openai",
+  "storeLocale": "ja-JP"
+}
