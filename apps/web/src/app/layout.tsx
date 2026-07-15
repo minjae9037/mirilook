@@ -144,6 +144,18 @@ export default function RootLayout({
       data-mirilook-theme="light"
     >
       <body className="min-h-full ml-pink pb-[calc(3.75rem_+_env(safe-area-inset-bottom))] sm:pb-0">
+        {/* 하트스코어와 동일한 Pretendard Variable(dynamic-subset)을 런타임 로드.
+            React가 stylesheet link를 <head>로 호이스트한다. Tailwind v4 빌드가 CSS
+            @import를 인라인하다 실패해 폰트가 안 뜨던 문제 우회. */}
+        <link
+          crossOrigin="anonymous"
+          href="https://cdn.jsdelivr.net"
+          rel="preconnect"
+        />
+        <link
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+          rel="stylesheet"
+        />
         <script dangerouslySetInnerHTML={{ __html: CANONICAL_HOST_BOOT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <script

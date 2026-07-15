@@ -1,5 +1,7 @@
 @import "tailwindcss";
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
+/* Pretendard Variable 폰트는 layout.tsx의 <link>로 런타임 로드한다.
+   (Tailwind v4/Lightning CSS가 @import를 빌드 시 인라인하다 실패해 폰트가
+   전혀 안 뜨던 문제 → 하트스코어와 동일한 dynamic-subset을 link로 로드) */
 
 :root {
   --background: #11100e;
