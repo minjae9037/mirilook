@@ -5216,7 +5216,7 @@ function AudienceSelector({
                 : "border-[#d95b8d]/70 bg-[#4a1830] text-[#fff1f7] hover:border-[#ff9ec8] hover:bg-[#5b1d39]"
               : selected
                 ? "border-[#f8dfa0] bg-[#f3d28a] text-[#1a1712] shadow-lg shadow-[#000]/30"
-                : "border-[#c9a96a]/75 bg-[#3a2c17] text-[#fff7e6] hover:border-[#f3d28a] hover:bg-[#4a381f]";
+                : "border-[#c9a96a]/75 bg-[#3a2c17] text-[#fff4d7] hover:border-[#f3d28a] hover:bg-[#4a381f]";
           const checkClass =
             option.id === "female"
               ? "border-white/70 bg-white/20 text-white"
