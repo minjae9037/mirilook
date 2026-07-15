@@ -1,63 +1,131 @@
-import { Store } from "lucide-react";
+"use client";
+
+import { LogIn, LogOut, Store, UserRound } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { MirilookAdminNavButton } from "@/components/mirilook-admin-nav-button";
-import { MirilookAuthNav } from "@/components/mirilook-auth-nav";
 import { MirilookLanguageSwitcher } from "@/components/mirilook-language-switcher";
-import { MirilookLogoMark } from "@/components/mirilook-logo-mark";
 import { MirilookThemeToggle } from "@/components/mirilook-theme-toggle";
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
-type MirilookMainNavProps = {
-  subtitle?: string;
-};
+// 네비 순서(대표님 지정):
+// 로그인 전) 미용실 > 커뮤니티 > 회원가입/로그인 > 스토어 > 다크/라이트 > COUNTRY
+// 로그인 후) 미용실 > 커뮤니티 > 시작하기 > 마이페이지 > 로그아웃 > 스토어 > 다크/라이트 > COUNTRY
+export function MirilookMainNav() {
+  const supabase = useMemo(() => getSupabaseBrowserClient(), []);
+  const [isSignedIn, setIsSignedIn] = useState(false);
 
-const mainNavItems = [
-  { href: "/salons", label: "미용실" },
-  { href: "/community", label: "커뮤니티" },
-];
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
 
-export function MirilookMainNav({
-  subtitle = "AI Salon Consultation",
-}: MirilookMainNavProps) {
+    let mounted = true;
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (mounted) {
+        setIsSignedIn(Boolean(data.user));
+      }
+    });
+
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsSignedIn(Boolean(session?.user));
+    });
+
+    return () => {
+      mounted = false;
+      data.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  async function signOut() {
+    if (!supabase) {
+      return;
+    }
+
+    await fetch("/api/admin-session/", { method: "DELETE" }).catch(() => null);
+    await supabase.auth.signOut();
+    setIsSignedIn(false);
+  }
+
+  const linkClass =
+    "inline-flex shrink-0 items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]";
+  const goldLinkClass =
+    "inline-flex shrink-0 items-center gap-2 rounded-md border border-[#c9a96a]/45 px-3 py-2 text-sm font-semibold text-[#f3d28a] transition hover:bg-[#f3d28a]/10";
+
   return (
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <header className="flex flex-row items-center justify-between gap-3">
+      {/* 좌측 상단 브랜드 — 홈(mirilook.com)과 동일: 핑크 아이콘 + "미리룩". */}
       <Link
-        className="flex w-fit items-center gap-4 transition hover:opacity-85"
+        aria-label="미리룩 홈으로"
+        className="flex w-fit shrink-0 items-center gap-2.5 transition hover:opacity-85"
         href="/"
       >
-        <MirilookLogoMark className="size-14 shrink-0 md:size-16" decorative />
-        <div>
-          <p className="text-lg font-semibold tracking-[0.08em] text-[#fffaf1]">
-            Miri Look
-          </p>
-          <p className="text-xs uppercase tracking-[0.24em] text-[#b8aa95]">
-            {subtitle}
-          </p>
-        </div>
+        <span className="relative flex size-11 shrink-0 overflow-hidden rounded-[14px] border border-[#ffd5e3] bg-[#fff5f8] shadow-sm sm:size-12">
+          <Image
+            alt="미리룩 아이콘"
+            className="scale-[1.22] object-cover"
+            fill
+            priority
+            sizes="48px"
+            src="/brand/mirilook-main-theme-pink-white-bg.png"
+          />
+        </span>
+        <span
+          className="whitespace-nowrap text-[23px] font-extrabold tracking-tight sm:text-[26px]"
+          style={{ color: "#ea4a7c" }}
+        >
+          미리룩
+        </span>
       </Link>
 
-      <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:justify-end">
-        <nav className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#d8cbb8] lg:flex-nowrap">
-          {mainNavItems.map((item) => (
-            <Link
-              className="rounded-md border border-white/10 px-3 py-2 transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
-              href={item.href}
-              key={item.href}
-            >
-              {item.label}
+      <div className="flex items-center gap-2">
+        {/* 주요 목적지 링크는 모바일에서 하단 내비게이션으로 이동 — 데스크톱에서만 상단 노출 */}
+        <div className="hidden flex-wrap items-center gap-2 sm:flex lg:flex-nowrap lg:justify-end">
+          <Link className={linkClass} href="/salons">
+            미용실
+          </Link>
+          <Link className={linkClass} href="/community">
+            커뮤니티
+          </Link>
+
+          {isSignedIn ? (
+            <>
+              <Link
+                className="inline-flex shrink-0 items-center gap-2 rounded-md px-3.5 py-2 text-sm font-bold text-white transition active:scale-95"
+                href="/studio"
+                style={{ background: "linear-gradient(135deg, #fb5c8d, #ea4a7c)" }}
+              >
+                시작하기
+              </Link>
+              <Link className={goldLinkClass} href="/mypage">
+                <UserRound aria-hidden="true" size={15} />
+                마이페이지
+              </Link>
+              <button className={linkClass} onClick={() => void signOut()} type="button">
+                <LogOut aria-hidden="true" size={15} />
+                로그아웃
+              </button>
+            </>
+          ) : (
+            <Link className={goldLinkClass} href="/login">
+              <LogIn aria-hidden="true" size={15} />
+              회원가입/로그인
             </Link>
-          ))}
-        </nav>
-        <MirilookAuthNav />
-        <MirilookLanguageSwitcher />
-        <Link
-          className="inline-flex shrink-0 items-center gap-2 rounded-md border border-[#f3d28a]/50 bg-[#f3d28a] px-3 py-2 text-sm font-bold text-black transition hover:bg-[#ffdf98] hover:text-black"
-          href="/store"
-          style={{ color: "#000000" }}
-        >
-          <Store aria-hidden="true" className="text-black" size={15} />
-          스토어
-        </Link>
+          )}
+
+          <Link
+            className="inline-flex shrink-0 items-center gap-2 rounded-md border border-[#f3d28a]/50 bg-[#f3d28a] px-3 py-2 text-sm font-bold text-black transition hover:bg-[#ffdf98] hover:text-black"
+            href="/store"
+            style={{ color: "#000000" }}
+          >
+            <Store aria-hidden="true" className="text-black" size={15} />
+            스토어
+          </Link>
+        </div>
         <MirilookThemeToggle />
+        <MirilookLanguageSwitcher />
         <MirilookAdminNavButton />
       </div>
     </header>

@@ -1,6 +1,7 @@
 ﻿import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { MirilookBottomNav } from "@/components/mirilook-bottom-nav";
 import { MirilookLegalFooter } from "@/components/mirilook-legal-footer";
 import { MirilookLanguageRuntime } from "@/components/mirilook-language-runtime";
 import { MirilookMobileAppPrompt } from "@/components/mirilook-mobile-app-prompt";
@@ -15,12 +16,37 @@ const THEME_BOOT_SCRIPT = `
 (() => {
   try {
     const storedTheme = window.localStorage.getItem("mirilook_theme");
-    const theme = storedTheme === "light" ? "light" : "dark";
+    const theme = storedTheme === "dark" ? "dark" : "light";
     document.documentElement.dataset.mirilookTheme = theme;
     document.documentElement.style.colorScheme = theme;
   } catch {
-    document.documentElement.dataset.mirilookTheme = "dark";
-    document.documentElement.style.colorScheme = "dark";
+    document.documentElement.dataset.mirilookTheme = "light";
+    document.documentElement.style.colorScheme = "light";
+  }
+})();
+`;
+const CANONICAL_HOST_BOOT_SCRIPT = `
+(() => {
+  try {
+    const host = window.location.hostname.toLowerCase();
+    const shouldRedirect =
+      host === "www.mirilook.com" ||
+      host === "fitcut-mirror.vercel.app" ||
+      host === "mirilook-mj-insight-s-projects.vercel.app" ||
+      host === "mirilook-minjae9037-mj-insight-s-projects.vercel.app";
+
+    if (!shouldRedirect) {
+      return;
+    }
+
+    window.location.replace(
+      "https://mirilook.com" +
+        window.location.pathname +
+        window.location.search +
+        window.location.hash,
+    );
+  } catch {
+    /* noop */
   }
 })();
 `;
@@ -71,7 +97,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Miri Look",
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
   },
   icons: {
     icon: [
@@ -91,7 +117,7 @@ export const metadata: Metadata = {
     description: siteDescription,
     images: [
       {
-        url: "/brand/mirilook-og.png",
+        url: "/brand/mirilook-og.png?v=2",
         width: 1200,
         height: 630,
         alt: "Miri Look AI 헤어스타일 추천 서비스",
@@ -102,7 +128,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: siteTitle,
     description: siteDescription,
-    images: ["/brand/mirilook-og.png"],
+    images: ["/brand/mirilook-og.png?v=2"],
   },
 };
 
@@ -115,9 +141,10 @@ export default function RootLayout({
     <html
       lang="ko"
       className="h-full antialiased"
-      data-mirilook-theme="dark"
+      data-mirilook-theme="light"
     >
-      <body className="min-h-full">
+      <body className="min-h-full ml-pink pb-[calc(3.75rem_+_env(safe-area-inset-bottom))] sm:pb-0">
+        <script dangerouslySetInnerHTML={{ __html: CANONICAL_HOST_BOOT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <script
           type="application/ld+json"
@@ -132,6 +159,7 @@ export default function RootLayout({
         {children}
         <MirilookLanguageRuntime />
         <MirilookLegalFooter />
+        <MirilookBottomNav />
         <MirilookMobileAppPrompt />
         <Analytics />
         <SpeedInsights />
