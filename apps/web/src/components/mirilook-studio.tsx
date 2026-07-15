@@ -5806,7 +5806,7 @@ function UploadBox({
         </div>
       ) : (
         <div className="flex h-full flex-col items-center justify-center gap-1.5 p-1.5 text-center sm:gap-2 sm:p-3 lg:gap-4 lg:p-5">
-          <span className="relative flex size-16 items-center justify-center overflow-hidden rounded-full border border-[#c9a96a]/60 bg-white text-[#f3d28a] shadow-[0_0_0_3px_rgba(201,169,106,0.16)] sm:size-24 lg:size-28">
+          <span className="relative flex size-20 items-center justify-center overflow-hidden rounded-full border border-[#c9a96a]/60 bg-white text-[#f3d28a] shadow-[0_0_0_3px_rgba(201,169,106,0.16)] sm:size-28 lg:size-36">
             <img
               alt={`${label} 예시`}
               aria-hidden="true"
