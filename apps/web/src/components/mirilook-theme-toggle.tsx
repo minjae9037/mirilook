@@ -34,7 +34,9 @@ export function MirilookThemeToggle() {
       type="button"
     >
       <Icon aria-hidden="true" size={15} />
-      {nextTheme === "light" ? "라이트" : "다크"}
+      <span className="hidden sm:inline">
+        {nextTheme === "light" ? "라이트" : "다크"}
+      </span>
     </button>
   );
 }

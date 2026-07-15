@@ -140,7 +140,7 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className="h-full antialiased"
+      className="h-full overflow-x-clip antialiased"
       data-mirilook-theme="light"
     >
       <body className="min-h-full ml-pink pb-[calc(3.75rem_+_env(safe-area-inset-bottom))] sm:pb-0">

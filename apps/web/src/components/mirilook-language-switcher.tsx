@@ -77,7 +77,7 @@ export function MirilookLanguageSwitcher() {
         type="button"
       >
         <Globe2 aria-hidden="true" size={14} />
-        <span>Country</span>
+        <span className="hidden sm:inline">Country</span>
         <span className="hidden text-xs font-bold text-[#f3d28a] md:inline">
           {selectedOption.label}
         </span>
