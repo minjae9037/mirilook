@@ -5,11 +5,9 @@ import {
   CheckCircle2,
   CircleAlert,
   Loader2,
-  Lock,
   LogIn,
   LogOut,
-  Mail,
-  ShieldCheck,
+  MessageCircle,
   Sparkles,
   UserPlus,
 } from "lucide-react";
@@ -17,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getAuthRedirectUrl,
+  getOAuthRedirectUrl,
   getSupabaseBrowserClient,
   getUserDisplayName,
   isNaverLoginEnabled,
@@ -57,7 +56,10 @@ export function MirilookAuthPanel() {
           display_name: getUserDisplayName(nextUser),
           email: nextUser.email,
           id: nextUser.id,
-          provider: text(nextUser.app_metadata?.provider) || "email",
+          provider:
+            text(nextUser.app_metadata?.provider) ||
+            text(nextUser.user_metadata?.provider) ||
+            "email",
           updated_at: new Date().toISOString(),
         },
         { onConflict: "id" },
@@ -86,7 +88,7 @@ export function MirilookAuthPanel() {
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: { redirectTo: getAuthRedirectUrl() },
+        options: { redirectTo: getOAuthRedirectUrl() },
       });
 
       if (error) {
@@ -183,7 +185,7 @@ export function MirilookAuthPanel() {
       setStatusTone("info");
       setStatus("네이버 로그인을 마무리하는 중입니다...");
 
-      const { error } = await supabase.auth.verifyOtp({
+      const { data, error } = await supabase.auth.verifyOtp({
         token_hash: tokenHash as string,
         type: "magiclink",
       });
@@ -197,9 +199,16 @@ export function MirilookAuthPanel() {
         );
         return;
       }
-      // 성공 시 onAuthStateChange(SIGNED_IN)가 홈으로 이동시킨다.
+
+      if (data.user) {
+        setUser(data.user);
+        await syncProfile(data.user);
+      }
+
+      postAuthRedirectedRef.current = true;
+      router.replace("/");
     })();
-  }, [supabase]);
+  }, [router, supabase, syncProfile]);
 
   async function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -346,84 +355,203 @@ export function MirilookAuthPanel() {
     setStatus("로그아웃되었습니다.");
   }
 
+  const actionVerb = mode === "login" ? "로그인" : "시작하기";
+
   return (
-    <section className="grid gap-5 rounded-lg border border-white/12 bg-[#171511]/92 p-4 shadow-2xl shadow-black/40 backdrop-blur md:p-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-      <div>
-        <div className="flex items-center gap-2">
-          <ShieldCheck aria-hidden="true" className="text-[#f3d28a]" size={20} />
-          <h2 className="text-xl font-semibold text-[#fffaf1]">
-            미리룩 계정
-          </h2>
-        </div>
-        <p className="mt-2 text-sm leading-6 text-[#b8aa95]">
-          이메일 계정으로 로그인하면 추천받은 헤어스타일, 상담 이미지, 저장한 결과를 계정별
-          히스토리로 관리할 수 있습니다.
-        </p>
-
-        {status ? <AuthStatusNotice message={status} tone={statusTone} /> : null}
-
-        {user ? (
-          <div className="mt-5 rounded-md border border-[#c9a96a]/35 bg-[#201a12]/78 p-4">
-            <p className="text-sm font-semibold text-[#f3d28a]">
-              로그인된 계정
-            </p>
-            <p className="mt-2 text-lg font-bold text-[#fffaf1]">
-              {getUserDisplayName(user)}
-            </p>
-            <p className="mt-1 text-sm text-[#b8aa95]">
-              {user.email ?? "이메일 계정"}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <a
-                className="inline-flex h-10 items-center gap-2 rounded-md bg-[#f3d28a] px-3 text-sm font-bold text-[#1a1712] transition hover:bg-[#ffdf98]"
-                href="/mypage"
-              >
-                <CheckCircle2 aria-hidden="true" size={16} />
-                마이페이지 보기
-              </a>
+    <section className="mx-auto w-full max-w-md">
+      {!user ? (
+        <div
+          className="mx-auto mb-7 flex w-full max-w-[19rem] rounded-full p-1"
+          style={{ background: "var(--ml-sunken, #f2f4f6)" }}
+        >
+          {(["signup", "login"] as const).map((item) => {
+            const activeTab = mode === item;
+            return (
               <button
-                className="inline-flex h-10 items-center gap-2 rounded-md border border-white/12 px-3 text-sm font-semibold text-[#e7dccb] transition hover:bg-white/8 disabled:cursor-not-allowed disabled:text-[#8f826f]"
-                disabled={busyAction === "signout"}
-                onClick={() => void signOut()}
+                className="h-11 flex-1 rounded-full text-sm font-extrabold transition"
+                key={item}
+                onClick={() => {
+                  setMode(item);
+                  setStatus("");
+                  setStatusTone("info");
+                }}
+                style={
+                  activeTab
+                    ? {
+                        background: "linear-gradient(135deg, #fb5c8d, #ea4a7c)",
+                        color: "#ffffff",
+                        boxShadow: "0 8px 18px rgba(234, 74, 124, 0.32)",
+                      }
+                    : { color: "var(--ml-muted, #5f6b7a)" }
+                }
                 type="button"
               >
-                {busyAction === "signout" ? (
-                  <Loader2 aria-hidden="true" className="animate-spin" size={16} />
-                ) : (
-                  <LogOut aria-hidden="true" size={16} />
-                )}
-                로그아웃
+                {item === "signup" ? "회원가입" : "로그인"}
               </button>
-            </div>
-          </div>
-        ) : (
-          <form className="mt-5 grid gap-3" onSubmit={(event) => void handleEmailSubmit(event)}>
-            <div className="flex rounded-md border border-white/10 bg-[#0f0e0c]/72 p-1">
-              {(["login", "signup"] as const).map((item) => (
-                <button
-                  className={`h-10 flex-1 rounded-md text-sm font-bold transition ${
-                    mode === item
-                      ? "bg-[#f3d28a] text-[#1a1712]"
-                      : "text-[#b8aa95] hover:bg-white/8 hover:text-[#fffaf1]"
-                  }`}
-                  key={item}
-                  onClick={() => {
-                    setMode(item);
-                    setStatus("");
-                    setStatusTone("info");
-                  }}
-                  type="button"
-                >
-                  {item === "login" ? "로그인" : "회원가입"}
-                </button>
-              ))}
-            </div>
+            );
+          })}
+        </div>
+      ) : null}
 
+      <div className="flex flex-col items-center text-center">
+        <span
+          className="flex size-16 items-center justify-center rounded-2xl text-white"
+          style={{
+            background: "linear-gradient(135deg, #fb5c8d, #ea4a7c)",
+            boxShadow: "0 12px 26px rgba(234, 74, 124, 0.32)",
+          }}
+        >
+          <Sparkles aria-hidden="true" size={30} />
+        </span>
+        <h2
+          className="mt-4 text-[30px] font-extrabold leading-tight"
+          style={{ color: "var(--ml-ink, #191f28)" }}
+        >
+          {user ? "내 계정" : mode === "login" ? "로그인" : "회원가입"}
+        </h2>
+        <p
+          className="mt-2 text-sm leading-6"
+          style={{ color: "var(--ml-muted, #5f6b7a)" }}
+        >
+          {user
+            ? "미리룩 계정으로 추천 히스토리와 상담 기록을 관리하세요."
+            : mode === "login"
+              ? "로그인하면 추천 히스토리와 상담 기록을 이어서 볼 수 있어요."
+              : "가입하면 추천 결과와 상담 이미지를 계정에 저장할 수 있어요."}
+        </p>
+      </div>
+
+      {status ? <AuthStatusNotice message={status} tone={statusTone} /> : null}
+
+      {user ? (
+        <div
+          className="mt-6 rounded-2xl p-5 text-center"
+          style={{ background: "#fff5f8", border: "1px solid #ffd5e3" }}
+        >
+          <p className="text-sm font-bold" style={{ color: "#ea4a7c" }}>
+            로그인된 계정
+          </p>
+          <p
+            className="mt-2 text-lg font-bold"
+            style={{ color: "var(--ml-ink, #191f28)" }}
+          >
+            {getUserDisplayName(user)}
+          </p>
+          <p className="mt-1 text-sm" style={{ color: "var(--ml-muted, #5f6b7a)" }}>
+            {user.email ?? "이메일 계정"}
+          </p>
+          <div className="mt-5 flex flex-col gap-2">
+            <a
+              className="flex h-12 items-center justify-center gap-2 rounded-xl text-[15px] font-bold text-white transition active:scale-[0.99]"
+              href="/mypage"
+              style={{ background: "linear-gradient(135deg, #fb5c8d, #ea4a7c)" }}
+            >
+              <CheckCircle2 aria-hidden="true" size={18} />
+              마이페이지 보기
+            </a>
+            <button
+              className="flex h-12 items-center justify-center gap-2 rounded-xl border text-[15px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={busyAction === "signout"}
+              onClick={() => void signOut()}
+              style={{ borderColor: "#e5e7eb", color: "var(--ml-body, #333b47)" }}
+              type="button"
+            >
+              {busyAction === "signout" ? (
+                <Loader2 aria-hidden="true" className="animate-spin" size={18} />
+              ) : (
+                <LogOut aria-hidden="true" size={18} />
+              )}
+              로그아웃
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="mt-6 grid gap-3">
+            <button
+              className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={busyAction === "kakao"}
+              onClick={() => void signInWithProvider("kakao")}
+              style={{ background: "#fee500", color: "#191600" }}
+              type="button"
+            >
+              {busyAction === "kakao" ? (
+                <Loader2 aria-hidden="true" className="animate-spin" size={18} />
+              ) : (
+                <MessageCircle aria-hidden="true" size={18} />
+              )}
+              {`카카오로 ${actionVerb}`}
+            </button>
+
+            <button
+              className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={busyAction === "google"}
+              onClick={() => void signInWithProvider("google")}
+              style={{ background: "#ffffff", borderColor: "#e5e7eb", color: "#191f28" }}
+              type="button"
+            >
+              {busyAction === "google" ? (
+                <Loader2 aria-hidden="true" className="animate-spin" size={18} />
+              ) : (
+                <GoogleGIcon />
+              )}
+              {`Google로 ${actionVerb}`}
+            </button>
+
+            {naverEnabled ? (
+              <button
+                className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl px-4 text-[15px] font-bold text-white transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={busyAction === "naver"}
+                onClick={() => {
+                  setBusyAction("naver");
+                  setStatusTone("info");
+                  setStatus("네이버 로그인 창으로 이동합니다...");
+                  startNaverLogin();
+                }}
+                style={{ background: "#03c75a" }}
+                type="button"
+              >
+                {busyAction === "naver" ? (
+                  <Loader2 aria-hidden="true" className="animate-spin" size={18} />
+                ) : (
+                  <span className="text-base font-black">N</span>
+                )}
+                {`네이버로 ${actionVerb}`}
+              </button>
+            ) : null}
+          </div>
+
+          <div className="my-6 flex items-center gap-3">
+            <span
+              className="h-px flex-1"
+              style={{ background: "var(--ml-border, rgba(25, 31, 40, 0.12))" }}
+            />
+            <span
+              className="text-xs font-semibold"
+              style={{ color: "var(--ml-muted, #5f6b7a)" }}
+            >
+              {mode === "login" ? "이메일로 로그인" : "이메일로 가입"}
+            </span>
+            <span
+              className="h-px flex-1"
+              style={{ background: "var(--ml-border, rgba(25, 31, 40, 0.12))" }}
+            />
+          </div>
+
+          <form
+            className="grid gap-3"
+            onSubmit={(event) => void handleEmailSubmit(event)}
+          >
             {mode === "signup" ? (
-              <label className="grid gap-1 text-sm font-semibold text-[#e7dccb]">
-                이름
+              <label className="grid gap-1.5">
+                <span
+                  className="text-[13px] font-bold"
+                  style={{ color: "var(--ml-ink, #191f28)" }}
+                >
+                  이름
+                </span>
                 <input
-                  className="h-11 rounded-md border border-white/10 bg-[#11100e] px-3 text-sm text-[#fffaf1] outline-none transition placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
+                  className="h-12 w-full rounded-xl border border-[#f3c6d6] bg-[#fff5f8] px-4 text-[15px] text-[#191f28] outline-none transition placeholder:text-[#b9899b] focus:border-[#ea4a7c] focus:bg-white"
                   onChange={(event) => setDisplayName(event.target.value)}
                   placeholder="히스토리에 표시할 이름"
                   value={displayName}
@@ -431,185 +559,100 @@ export function MirilookAuthPanel() {
               </label>
             ) : null}
 
-            <label className="grid gap-1 text-sm font-semibold text-[#e7dccb]">
-              이메일
-              <span className="relative">
-                <Mail
-                  aria-hidden="true"
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8f826f]"
-                  size={16}
-                />
-                <input
-                  className="h-11 w-full rounded-md border border-white/10 bg-[#11100e] px-9 text-sm text-[#fffaf1] outline-none transition placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
-                  inputMode="email"
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@example.com"
-                  type="email"
-                  value={email}
-                />
-              </span>
-            </label>
-
-            <label className="grid gap-1 text-sm font-semibold text-[#e7dccb]">
-              비밀번호
-              <span className="relative">
-                <Lock
-                  aria-hidden="true"
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8f826f]"
-                  size={16}
-                />
-                <input
-                  className="h-11 w-full rounded-md border border-white/10 bg-[#11100e] px-9 text-sm text-[#fffaf1] outline-none transition placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
-                  minLength={6}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="6자 이상"
-                  type="password"
-                  value={password}
-                />
-              </span>
-            </label>
-
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#f3d28a] px-4 text-sm font-bold text-[#1a1712] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:bg-[#675737] disabled:text-[#b8aa95]"
-                disabled={busyAction === mode}
-                type="submit"
+            <label className="grid gap-1.5">
+              <span
+                className="text-[13px] font-bold"
+                style={{ color: "var(--ml-ink, #191f28)" }}
               >
-                {busyAction === mode ? (
-                  <Loader2 aria-hidden="true" className="animate-spin" size={17} />
-                ) : mode === "login" ? (
-                  <LogIn aria-hidden="true" size={17} />
-                ) : (
-                  <UserPlus aria-hidden="true" size={17} />
-                )}
-                {busyAction === mode
-                  ? mode === "login"
-                    ? "로그인 중..."
-                    : "가입 처리 중..."
-                  : mode === "login"
-                    ? "이메일로 로그인"
-                    : "이메일로 회원가입"}
-              </button>
-              {mode === "login" ? (
-                <button
-                  className="inline-flex h-11 items-center justify-center rounded-md border border-white/12 px-4 text-sm font-semibold text-[#e7dccb] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a] disabled:cursor-not-allowed disabled:text-[#8f826f]"
-                  disabled={busyAction === "reset"}
-                  onClick={() => void sendPasswordReset()}
-                  type="button"
-                >
-                  {busyAction === "reset" ? "발송 중" : "비밀번호 재설정"}
-                </button>
-              ) : null}
-            </div>
-          </form>
-        )}
-      </div>
+                이메일
+              </span>
+              <input
+                className="h-12 w-full rounded-xl border border-[#f3c6d6] bg-[#fff5f8] px-4 text-[15px] text-[#191f28] outline-none transition placeholder:text-[#b9899b] focus:border-[#ea4a7c] focus:bg-white"
+                inputMode="email"
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                type="email"
+                value={email}
+              />
+            </label>
 
-      <aside className="rounded-md border border-[#2b281f] bg-[#0f0e0c]/78 p-4">
-        <div className="flex items-center gap-2">
-          <Sparkles aria-hidden="true" className="text-[#f3d28a]" size={18} />
-          <h3 className="text-base font-semibold text-[#fffaf1]">
-            SNS로 간편하게 시작하기
-          </h3>
-        </div>
-        <p className="mt-2 text-sm leading-6 text-[#b8aa95]">
-          구글·카카오 계정으로 1초 만에 로그인하고, 추천 결과와 상담 기록을
-          계정에 저장하세요.
-        </p>
-        <div className="mt-4 grid gap-2">
-          <button
-            className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-md border border-white/12 bg-[#15130f] p-2 text-left transition hover:border-[#f3d28a]/60 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={busyAction === "google"}
-            onClick={() => void signInWithProvider("google")}
-            type="button"
-          >
-            <span className="flex size-10 items-center justify-center rounded-md bg-white text-base font-black text-[#1a1712]">
-              {busyAction === "google" ? (
-                <Loader2 aria-hidden="true" className="animate-spin" size={16} />
-              ) : (
-                "G"
-              )}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-bold text-[#fffaf1]">
-                Google로 계속하기
+            <label className="grid gap-1.5">
+              <span
+                className="text-[13px] font-bold"
+                style={{ color: "var(--ml-ink, #191f28)" }}
+              >
+                비밀번호
               </span>
-              <span className="mt-0.5 block text-xs text-[#8f826f]">
-                구글 계정으로 로그인 / 회원가입
-              </span>
-            </span>
-          </button>
+              <input
+                className="h-12 w-full rounded-xl border border-[#f3c6d6] bg-[#fff5f8] px-4 text-[15px] text-[#191f28] outline-none transition placeholder:text-[#b9899b] focus:border-[#ea4a7c] focus:bg-white"
+                minLength={6}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="6자 이상"
+                type="password"
+                value={password}
+              />
+            </label>
 
-          <button
-            className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-md border border-white/12 bg-[#15130f] p-2 text-left transition hover:border-[#f3d28a]/60 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={busyAction === "kakao"}
-            onClick={() => void signInWithProvider("kakao")}
-            type="button"
-          >
-            <span className="flex size-10 items-center justify-center rounded-md bg-[#fee500] text-base font-black text-[#191600]">
-              {busyAction === "kakao" ? (
-                <Loader2 aria-hidden="true" className="animate-spin" size={16} />
-              ) : (
-                "K"
-              )}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-bold text-[#fffaf1]">
-                카카오로 계속하기
-              </span>
-              <span className="mt-0.5 block text-xs text-[#8f826f]">
-                카카오 계정으로 로그인 / 회원가입
-              </span>
-            </span>
-          </button>
-
-          {naverEnabled ? (
             <button
-              className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-md border border-white/12 bg-[#15130f] p-2 text-left transition hover:border-[#f3d28a]/60 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={busyAction === "naver"}
-              onClick={() => {
-                setBusyAction("naver");
-                setStatusTone("info");
-                setStatus("네이버 로그인 창으로 이동합니다...");
-                startNaverLogin();
-              }}
-              type="button"
+              className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-bold text-white transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={busyAction === mode}
+              style={{ background: "linear-gradient(135deg, #fb5c8d, #ea4a7c)" }}
+              type="submit"
             >
-              <span className="flex size-10 items-center justify-center rounded-md bg-[#03c75a] text-base font-black text-white">
-                {busyAction === "naver" ? (
-                  <Loader2 aria-hidden="true" className="animate-spin" size={16} />
-                ) : (
-                  "N"
-                )}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-bold text-[#fffaf1]">
-                  네이버로 계속하기
-                </span>
-                <span className="mt-0.5 block text-xs text-[#8f826f]">
-                  네이버 계정으로 로그인 / 회원가입
-                </span>
-              </span>
+              {busyAction === mode ? (
+                <Loader2 aria-hidden="true" className="animate-spin" size={18} />
+              ) : mode === "login" ? (
+                <LogIn aria-hidden="true" size={18} />
+              ) : (
+                <UserPlus aria-hidden="true" size={18} />
+              )}
+              {busyAction === mode
+                ? mode === "login"
+                  ? "로그인 중..."
+                  : "가입 처리 중..."
+                : mode === "login"
+                  ? "이메일로 로그인"
+                  : "이메일로 회원가입"}
             </button>
-          ) : (
-            <div className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-md border border-white/10 bg-[#15130f] p-2 opacity-70">
-              <span className="flex size-10 items-center justify-center rounded-md bg-[#03c75a] text-base font-black text-white">
-                N
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-bold text-[#fffaf1]">
-                  네이버
-                </span>
-                <span className="mt-0.5 block text-xs text-[#8f826f]">
-                  준비 중 (곧 지원 예정)
-                </span>
-              </span>
-            </div>
-          )}
-        </div>
-      </aside>
 
+            {mode === "login" ? (
+              <button
+                className="mx-auto mt-1 text-[13px] font-semibold underline underline-offset-4 transition disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={busyAction === "reset"}
+                onClick={() => void sendPasswordReset()}
+                style={{ color: "var(--ml-muted, #5f6b7a)" }}
+                type="button"
+              >
+                {busyAction === "reset" ? "재설정 메일 발송 중…" : "비밀번호를 잊으셨나요?"}
+              </button>
+            ) : null}
+          </form>
+        </>
+      )}
     </section>
+  );
+}
+
+function GoogleGIcon() {
+  return (
+    <svg aria-hidden="true" height="18" viewBox="0 0 18 18" width="18">
+      <path
+        d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"
+        fill="#4285F4"
+      />
+      <path
+        d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"
+        fill="#34A853"
+      />
+      <path
+        d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"
+        fill="#EA4335"
+      />
+    </svg>
   );
 }
 
@@ -621,18 +664,19 @@ function AuthStatusNotice({
   tone: StatusTone;
 }) {
   const Icon = tone === "error" ? CircleAlert : tone === "success" ? CheckCircle2 : Loader2;
-  const toneClass =
+  const toneStyle =
     tone === "error"
-      ? "border-red-400/40 bg-red-950/30 text-red-100"
+      ? { background: "#fdecef", border: "1px solid #f2b8b3", color: "#c0342f" }
       : tone === "success"
-        ? "border-emerald-400/35 bg-emerald-950/28 text-emerald-100"
-        : "border-[#c9a96a]/35 bg-[#201a12]/76 text-[#f3d28a]";
+        ? { background: "#e8f6ec", border: "1px solid #a9dcbb", color: "#1f7a45" }
+        : { background: "#fff5f8", border: "1px solid #f3c6d6", color: "#ea4a7c" };
 
   return (
     <p
       aria-live="polite"
-      className={`mt-4 flex items-start gap-2 rounded-md border px-3 py-2 text-sm leading-6 ${toneClass}`}
+      className="mt-5 flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm leading-6"
       role="status"
+      style={toneStyle}
     >
       <Icon
         aria-hidden="true"
