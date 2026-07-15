@@ -75,13 +75,16 @@ export function MirilookAdminNavButton() {
 
   return (
     <button
+      aria-label="관리자"
       className="inline-flex shrink-0 items-center gap-2 rounded-md border border-[#7fcf9b]/45 bg-[#15331f] px-3 py-2 text-sm font-bold text-[#b9f0c5] transition hover:border-[#9ee5b6] hover:bg-[#1e452b] disabled:cursor-wait disabled:opacity-70"
       disabled={isOpening}
       onClick={() => void openAdmin()}
       type="button"
     >
       <ShieldCheck aria-hidden="true" size={15} />
-      {isOpening ? "관리자 연결" : "관리자"}
+      <span className="hidden sm:inline">
+        {isOpening ? "관리자 연결" : "관리자"}
+      </span>
     </button>
   );
 }
