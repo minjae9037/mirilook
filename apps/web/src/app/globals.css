@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
 
 :root {
   --background: #11100e;
@@ -55,11 +55,12 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family:
+    "Pretendard Variable",
     "Pretendard",
+    system-ui,
+    -apple-system,
     "Apple SD Gothic Neo",
     "Malgun Gothic",
-    "Segoe UI",
-    Arial,
     sans-serif;
   transition:
     background-color 160ms ease,

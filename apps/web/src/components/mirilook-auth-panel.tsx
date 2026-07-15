@@ -5,11 +5,10 @@ import {
   CheckCircle2,
   CircleAlert,
   Loader2,
-  LogIn,
   LogOut,
+  Mail,
   MessageCircle,
   Sparkles,
-  UserPlus,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -361,14 +360,14 @@ export function MirilookAuthPanel() {
     <section className="mx-auto w-full max-w-md">
       {!user ? (
         <div
-          className="mx-auto mb-7 flex w-full max-w-[19rem] rounded-full p-1"
+          className="mx-auto mb-7 flex w-full max-w-[19rem] rounded-2xl p-1"
           style={{ background: "var(--ml-sunken, #f2f4f6)" }}
         >
           {(["signup", "login"] as const).map((item) => {
             const activeTab = mode === item;
             return (
               <button
-                className="h-11 flex-1 rounded-full text-sm font-extrabold transition"
+                className="h-11 flex-1 rounded-xl text-sm font-extrabold transition"
                 key={item}
                 onClick={() => {
                   setMode(item);
@@ -469,25 +468,30 @@ export function MirilookAuthPanel() {
         <>
           <div className="mt-6 grid gap-3">
             <button
-              className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
               disabled={busyAction === "kakao"}
               onClick={() => void signInWithProvider("kakao")}
-              style={{ background: "#fbe79b", color: "#4a3f1e" }}
+              style={{ background: "#fde86b", color: "#3c2e00" }}
               type="button"
             >
               {busyAction === "kakao" ? (
                 <Loader2 aria-hidden="true" className="animate-spin" size={18} />
               ) : (
-                <MessageCircle aria-hidden="true" size={18} />
+                <MessageCircle aria-hidden="true" fill="#3c2e00" size={18} />
               )}
               {`카카오로 ${actionVerb}`}
             </button>
 
             <button
-              className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl border px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
               disabled={busyAction === "google"}
               onClick={() => void signInWithProvider("google")}
-              style={{ background: "#ffffff", borderColor: "#e5e7eb", color: "#191f28" }}
+              style={{
+                background: "#ffffff",
+                borderColor: "#dadce0",
+                color: "#1f1f1f",
+                boxShadow: "0 1px 3px rgba(60, 64, 67, 0.15)",
+              }}
               type="button"
             >
               {busyAction === "google" ? (
@@ -500,7 +504,7 @@ export function MirilookAuthPanel() {
 
             {naverEnabled ? (
               <button
-                className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={busyAction === "naver"}
                 onClick={() => {
                   setBusyAction("naver");
@@ -551,7 +555,7 @@ export function MirilookAuthPanel() {
                   이름
                 </span>
                 <input
-                  className="h-12 w-full rounded-xl border border-[#f3c6d6] bg-[#fff5f8] px-4 text-[15px] text-[#191f28] outline-none transition placeholder:text-[#b9899b] focus:border-[#ea4a7c] focus:bg-white"
+                  className="h-14 w-full rounded-2xl border border-[#f3c6d6] bg-[#fff5f8] px-4 text-[15px] text-[#191f28] outline-none transition placeholder:text-[#b9899b] focus:border-[#ea4a7c] focus:bg-white"
                   onChange={(event) => setDisplayName(event.target.value)}
                   placeholder="히스토리에 표시할 이름"
                   value={displayName}
@@ -567,7 +571,7 @@ export function MirilookAuthPanel() {
                 이메일
               </span>
               <input
-                className="h-12 w-full rounded-xl border border-[#f3c6d6] bg-[#fff5f8] px-4 text-[15px] text-[#191f28] outline-none transition placeholder:text-[#b9899b] focus:border-[#ea4a7c] focus:bg-white"
+                className="h-14 w-full rounded-2xl border border-[#f3c6d6] bg-[#fff5f8] px-4 text-[15px] text-[#191f28] outline-none transition placeholder:text-[#b9899b] focus:border-[#ea4a7c] focus:bg-white"
                 inputMode="email"
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
@@ -584,7 +588,7 @@ export function MirilookAuthPanel() {
                 비밀번호
               </span>
               <input
-                className="h-12 w-full rounded-xl border border-[#f3c6d6] bg-[#fff5f8] px-4 text-[15px] text-[#191f28] outline-none transition placeholder:text-[#b9899b] focus:border-[#ea4a7c] focus:bg-white"
+                className="h-14 w-full rounded-2xl border border-[#f3c6d6] bg-[#fff5f8] px-4 text-[15px] text-[#191f28] outline-none transition placeholder:text-[#b9899b] focus:border-[#ea4a7c] focus:bg-white"
                 minLength={6}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="6자 이상"
@@ -594,17 +598,15 @@ export function MirilookAuthPanel() {
             </label>
 
             <button
-              className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-bold text-[#191f28] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-1 flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-4 text-base font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
               disabled={busyAction === mode}
-              style={{ background: "#f2f4f6" }}
+              style={{ background: "#f2f4f6", color: "#333d4b" }}
               type="submit"
             >
               {busyAction === mode ? (
                 <Loader2 aria-hidden="true" className="animate-spin" size={18} />
-              ) : mode === "login" ? (
-                <LogIn aria-hidden="true" size={18} />
               ) : (
-                <UserPlus aria-hidden="true" size={18} />
+                <Mail aria-hidden="true" size={18} />
               )}
               {busyAction === mode
                 ? mode === "login"
