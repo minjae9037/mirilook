@@ -12,7 +12,15 @@ import {
   useRef,
   useState,
 } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
+import {
+  stepFromPathname,
+  stepHref,
+  nextStep,
+  prevStep,
+  type StudioStep,
+} from "@/lib/studio-flow";
 import {
   ChevronDown,
   ChevronLeft,
@@ -23,6 +31,7 @@ import {
   ExternalLink,
   ImagePlus,
   Info,
+  LayoutGrid,
   Link,
   Loader2,
   Mail,
@@ -742,6 +751,10 @@ const initialCelebrityReferenceGroup: CelebrityReferenceGroup = {
 };
 
 export function MirilookStudio() {
+  // 위저드 단계(URL) — layout이 스튜디오를 지속 마운트하고 URL만 바뀐다.
+  const router = useRouter();
+  const pathname = usePathname();
+  const flowStep = stepFromPathname(pathname);
   const [photos, setPhotos] = useState<Record<PhotoSlot, UploadedPhoto | null>>({
     left: null,
     front: null,
@@ -841,6 +854,7 @@ export function MirilookStudio() {
   } | null>(null);
   const [isDownloadingRenderedResults, setIsDownloadingRenderedResults] =
     useState(false);
+  const [isSavingGrid, setIsSavingGrid] = useState(false);
   const [mirroredResultLabels, setMirroredResultLabels] = useState<Set<string>>(
     () => new Set(),
   );
@@ -850,7 +864,7 @@ export function MirilookStudio() {
     OutfitRecommendation[]
   >([]);
   // Target wear-date for TPO/season-aware outfit recommendations (empty = today).
-  const [outfitOccasionDate, setOutfitOccasionDate] = useState("");
+  const [outfitOccasionDate] = useState("");
   const [outfitFullBody, setOutfitFullBody] = useState<OutfitFullBodyState>({
     isGenerating: false,
   });
@@ -1126,7 +1140,7 @@ export function MirilookStudio() {
 
       if (result.entitlements?.premium_addons?.active) {
         setStatusMessage(
-          "프리미엄 스타일 리포트 권한이 활성화되었습니다. 코디와 메이크업 확장 상담을 선택할 수 있습니다.",
+          "프리미엄 스타일 리포트 권한이 활성화되었습니다. 코디 확장 상담을 선택할 수 있습니다.",
         );
       } else {
         setStatusMessage(
@@ -2465,6 +2479,12 @@ export function MirilookStudio() {
     if (liveAiEnabled && (!selectedStyle.imageUrl || selectedStyle.error)) {
       setStatusMessage("먼저 선택한 스타일 이미지가 정상 생성되어야 합니다.");
       return;
+    }
+
+    // #1 클릭 즉시 "생성 중"으로 전환(라벨 지연 방지) + 위저드 자동으로 코디 결과 화면 이동.
+    if (liveAiEnabled) {
+      setOutfitFullBody({ isGenerating: true });
+      setStatusMessage("코디를 생성하는 중입니다…");
     }
 
     setPremiumAddOnIds((current) =>
@@ -3889,6 +3909,98 @@ export function MirilookStudio() {
     }
   }
 
+  // 상담용 9장을 3x3 바둑판 한 장(단일 이미지 파일)으로 저장.
+  async function downloadRenderedResultsAsGrid() {
+    if (!selectedStyle) {
+      return;
+    }
+
+    const gridItems = renderedResults
+      .filter((result) => result.imageUrl)
+      .map((result) => ({
+        url: result.imageUrl as string,
+        mirrored: mirroredResultLabels.has(result.label),
+      }));
+
+    if (!gridItems.length) {
+      setStatusMessage("저장할 상담용 이미지가 아직 없습니다.");
+      return;
+    }
+
+    setIsSavingGrid(true);
+    setStatusMessage(`상담용 이미지 ${gridItems.length}장을 3x3 한 장으로 저장합니다.`);
+
+    try {
+      await downloadImagesAsGrid(
+        gridItems,
+        `mirilook-${selectedStyle.id}-상담9장-3x3.jpg`,
+      );
+      setStatusMessage(`상담용 이미지 ${gridItems.length}장을 3x3 한 장으로 저장했습니다.`);
+    } catch (error) {
+      console.warn("grid save failed", error);
+      setStatusMessage("3x3 한 장 저장에 실패했습니다. 개별 저장을 이용해 주세요.");
+    } finally {
+      setIsSavingGrid(false);
+    }
+  }
+
+  // 추천 스타일 9장을 3x3 바둑판 한 장(단일 이미지 파일)으로 저장.
+  async function downloadRecommendationsAsGrid() {
+    const gridItems = recommendations
+      .filter((style) => style.imageUrl)
+      .map((style) => ({ url: style.imageUrl as string }));
+
+    if (!gridItems.length) {
+      setStatusMessage("저장할 추천 이미지가 아직 없습니다.");
+      return;
+    }
+
+    setIsSavingGrid(true);
+    setStatusMessage(`추천 이미지 ${gridItems.length}장을 3x3 한 장으로 저장합니다.`);
+
+    try {
+      await downloadImagesAsGrid(gridItems, `mirilook-추천9장-3x3.jpg`);
+      setStatusMessage(`추천 이미지 ${gridItems.length}장을 3x3 한 장으로 저장했습니다.`);
+    } catch (error) {
+      console.warn("grid save failed", error);
+      setStatusMessage("3x3 한 장 저장에 실패했습니다. 개별 저장을 이용해 주세요.");
+    } finally {
+      setIsSavingGrid(false);
+    }
+  }
+
+  // 코디(전신+아이템) 이미지 일괄 저장 — 상담 9장 저장과 동일한 유틸 재사용.
+  async function downloadAllOutfitImages() {
+    const urls: Array<[string, string]> = [];
+    const baseId = selectedStyle?.id ?? "outfit";
+    if (outfitFullBody.imageUrl) {
+      urls.push([outfitFullBody.imageUrl, `mirilook-${baseId}-full-outfit.jpg`]);
+    }
+    outfitRecommendations.forEach((item, index) => {
+      if (item.imageUrl) {
+        urls.push([item.imageUrl, `mirilook-${baseId}-outfit-${index + 1}.jpg`]);
+      }
+    });
+
+    if (!urls.length) {
+      setStatusMessage("저장할 코디 이미지가 아직 없습니다.");
+      return;
+    }
+
+    setIsDownloadingRenderedResults(true);
+    setStatusMessage(`코디 이미지 ${urls.length}장을 저장합니다.`);
+
+    try {
+      for (const [url, name] of urls) {
+        await downloadResultImage(url, name, { mirrored: false });
+        await waitForDownloadStep();
+      }
+      setStatusMessage(`코디 이미지 ${urls.length}장을 모두 저장했습니다.`);
+    } finally {
+      setIsDownloadingRenderedResults(false);
+    }
+  }
+
   function moveRenderedResultPreview(direction: -1 | 1) {
     setRenderedResultPreview((current) => {
       if (!current || !renderedResults.length) {
@@ -4188,6 +4300,83 @@ export function MirilookStudio() {
     renderRunRef.current += 1;
   }
 
+  // ── 위저드: 생성이 시작되면 해당 결과 URL로 자동 이동 ──────────────────────
+  // (무료/추가결제 분기, 9-1↔9-2 교차 버튼과 무관하게 "생성 시작" 상태만 보고 이동)
+  useEffect(() => {
+    if (isRendering && flowStep !== "consult") {
+      router.push(stepHref("consult"));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRendering]);
+  useEffect(() => {
+    if (outfitFullBody.isGenerating && flowStep !== "outfit") {
+      router.push(stepHref("outfit"));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outfitFullBody.isGenerating]);
+
+  const stepCanProceed: Record<StudioStep, boolean> = {
+    photos: Boolean(readyPhotos),
+    style: true,
+    color: true,
+    notes: true,
+    summary: true,
+    recommend: true,
+    consult: true,
+    outfit: true,
+  };
+
+  const renderStepNav = (step: StudioStep) => {
+    const prev = prevStep(step);
+    const next = nextStep(step);
+    const showNext = Boolean(next) && step !== "summary";
+    return (
+      <div className="mt-1 flex items-center justify-between gap-3">
+        {prev ? (
+          <button
+            className="inline-flex h-11 items-center gap-1.5 rounded-md border border-white/12 px-4 text-sm font-bold text-[#e7dccb] transition hover:bg-white/8"
+            onClick={() => router.push(stepHref(prev))}
+            type="button"
+          >
+            <ChevronLeft size={16} /> 이전
+          </button>
+        ) : (
+          <span />
+        )}
+        {showNext ? (
+          <button
+            className="inline-flex h-11 items-center gap-1.5 rounded-md bg-[#f3d28a] px-5 text-sm font-black text-[#1a1712] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:bg-[#6b5b36] disabled:text-[#d8cbb8]"
+            disabled={!stepCanProceed[step]}
+            onClick={() => next && router.push(stepHref(next))}
+            type="button"
+          >
+            다음 <ChevronRight size={16} />
+          </button>
+        ) : (
+          <span />
+        )}
+      </div>
+    );
+  };
+
+  const summaryRows: Array<[string, string, StudioStep]> = [
+    ["추천 대상", selectedAudience === "female" ? "여성" : "남성", "photos"],
+    [
+      "선호 스타일",
+      preferredStyleIds.length ? `${preferredStyleIds.length}개 선택` : "자동 추천",
+      "style",
+    ],
+    ["헤어 컬러", selectedHairColor?.name ?? "지정 안 함", "color"],
+    ["느낌 메모", styleMemo ? "작성함" : "없음", "notes"],
+    [
+      "연예인 레퍼런스",
+      celebrityReferenceGroupsWithPhotos.length
+        ? `${celebrityReferenceGroupsWithPhotos.length}명`
+        : "없음",
+      "notes",
+    ],
+  ];
+
   return (
     <section className="w-full max-w-6xl overflow-x-clip rounded-lg border border-white/12 bg-[#171511]/88 p-4 shadow-2xl shadow-black/40 backdrop-blur md:p-5">
       <input
@@ -4220,27 +4409,18 @@ export function MirilookStudio() {
         type="file"
       />
 
-      <AudienceSelector
-        selectedAudience={selectedAudience}
-        onChange={selectAudience}
-      />
-      <FlowStepper
-        activeStep={
-          renderedResults.some((result) => result.imageUrl)
-            ? 4
-            : selectedStyle
-              ? 3
-              : analysisReady
-                ? 2
-                : hasAnyPhoto
-                  ? 1
-                  : 0
-        }
-      />
-      <ConsentNotice
-        accepted={privacyAccepted}
-        onChange={setPrivacyAccepted}
-      />
+      {flowStep === "photos" ? (
+        <>
+          <AudienceSelector
+            selectedAudience={selectedAudience}
+            onChange={selectAudience}
+          />
+          <ConsentNotice
+            accepted={privacyAccepted}
+            onChange={setPrivacyAccepted}
+          />
+        </>
+      ) : null}
       {consentPopupAction ? (
         <ConsentRequiredDialog
           actionLabel={
@@ -4281,9 +4461,12 @@ export function MirilookStudio() {
         />
       ) : null}
 
+      {flowStep === "photos" ? (
+        <>
       <div className="grid grid-cols-3 items-stretch gap-2 sm:gap-3 lg:gap-4">
         {photoSlotConfig.map((item) => (
           <UploadBox
+            audience={selectedAudience}
             badge={item.badge}
             hint={item.hint}
             key={item.slot}
@@ -4358,7 +4541,7 @@ export function MirilookStudio() {
           </div>
         ) : (
           <button
-            className="inline-flex h-10 w-fit items-center gap-2 rounded-md border border-white/12 px-3 text-sm font-semibold text-[#e7dccb] transition hover:bg-white/8 disabled:cursor-not-allowed disabled:text-[#8f826f]"
+            className="inline-flex h-10 w-fit items-center gap-2 rounded-md bg-[#f3d28a] px-4 text-sm font-bold text-[#1a1712] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:bg-[#6b5b36] disabled:text-[#d8cbb8]"
             disabled={isLoadingSavedPhotos}
             onClick={() => void loadSavedProfilePhotos()}
             type="button"
@@ -4372,21 +4555,32 @@ export function MirilookStudio() {
           </button>
         )}
       </div>
+          {renderStepNav("photos")}
+        </>
+      ) : null}
 
-      {hasAnyPhoto ? (
-        <div className="mt-5 grid gap-5 border-t border-white/10 pt-5">
-          <div className="rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4">
-            <div>
-              <p className="text-sm font-semibold text-[#fffaf1]">
-                {readyPhotos
-                  ? "사진 준비 완료"
-                  : `추천까지 사진 ${missingPhotoCount}장 남음`}
-              </p>
-              <p className="mt-1 text-sm text-[#b8aa95]">
-                추천 목적과 헤어 컬러는 선택 사항입니다. 건너뛰어도 미리룩이 자동으로 추천합니다.
-              </p>
-            </div>
+      {(flowStep === "style" ||
+        flowStep === "color" ||
+        flowStep === "notes" ||
+        flowStep === "summary") &&
+      !hasAnyPhoto ? (
+        <div className="mt-4 grid gap-3 rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-6 text-center">
+          <p className="text-sm font-semibold text-[#fffaf1]">먼저 사진을 올려 주세요.</p>
+          <p className="text-sm text-[#b8aa95]">사진을 올려야 이 단계를 진행할 수 있어요.</p>
+          <div className="flex justify-center">
+            <button
+              className="inline-flex h-11 items-center gap-1.5 rounded-md bg-[#f3d28a] px-5 text-sm font-black text-[#1a1712] transition hover:bg-[#ffdf98]"
+              onClick={() => router.push(stepHref("photos"))}
+              type="button"
+            >
+              <ChevronLeft size={16} /> 사진 올리러 가기
+            </button>
           </div>
+        </div>
+      ) : null}
+
+      {flowStep === "style" && hasAnyPhoto ? (
+        <div className="mt-5 grid gap-5">
           <RecommendationModePanel
             mode={recommendationMode}
             onSelect={selectRecommendationMode}
@@ -4403,6 +4597,12 @@ export function MirilookStudio() {
               selectedStyleIds={preferredStyleIds}
             />
           ) : null}
+          {renderStepNav("style")}
+        </div>
+      ) : null}
+
+      {flowStep === "color" && hasAnyPhoto ? (
+        <div className="mt-5 grid gap-5">
           <HairColorPanel
             onSelect={selectHairColor}
             selectedColorId={selectedHairColorId}
@@ -4413,6 +4613,12 @@ export function MirilookStudio() {
               onToggle={toggleConsultingFocus}
             />
           ) : null}
+          {renderStepNav("color")}
+        </div>
+      ) : null}
+
+      {flowStep === "notes" && hasAnyPhoto ? (
+        <div className="mt-5 grid gap-5">
           <StyleMemoPanel
             audience={selectedAudience}
             onChange={updateStyleMemo}
@@ -4433,13 +4639,42 @@ export function MirilookStudio() {
             onSelectGroup={setActiveCelebrityReferenceGroupId}
             onUploadClick={() => celebrityInputRef.current?.click()}
           />
+          {renderStepNav("notes")}
+        </div>
+      ) : null}
+
+      {flowStep === "summary" && hasAnyPhoto ? (
+        <div className="mt-5 grid gap-5">
+          <div className="rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4">
+            <p className="text-sm font-bold text-[#fffaf1]">입력 요약</p>
+            <div className="mt-3 grid gap-2">
+              {summaryRows.map(([label, value, target]) => (
+                <div
+                  className="flex items-center justify-between gap-3 rounded-md border border-white/8 bg-[#11100e]/60 px-3 py-2"
+                  key={label}
+                >
+                  <span className="text-sm text-[#b8aa95]">{label}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-[#fffaf1]">{value}</span>
+                    <button
+                      className="rounded-md border border-white/12 px-2 py-0.5 text-xs font-semibold text-[#f3d28a] transition hover:bg-white/8"
+                      onClick={() => router.push(stepHref(target))}
+                      type="button"
+                    >
+                      수정
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="grid gap-4 rounded-md border border-[#c9a96a]/35 bg-[#30271a]/45 p-4">
             <div>
               <p className="text-sm font-semibold text-[#fffaf1]">
                 추천 기준을 모두 확인한 뒤 시작하세요.
               </p>
               <p className="mt-1 text-sm leading-6 text-[#d8cbb8]">
-                추천 목적과 헤어 컬러, 필요한 메모를 먼저 확인하면 더 정확한 9개 이미지를 만들 수 있습니다. 실제 추천 1회당 {HairMoneyRecommendationCost} Hair Money({HairMoneyRecommendationPriceKrw.toLocaleString("ko-KR")}원 기준)가 차감됩니다.
+                추천 목적과 헤어 컬러, 필요한 메모를 먼저 확인하면 더 정확한 9개 이미지를 만들 수 있습니다. 실제 추천 1회당 {HairMoneyRecommendationCost} Hair Money({HairMoneyRecommendationPriceKrw.toLocaleString("ko-KR")}원, VAT 포함 기준)가 차감됩니다.
               </p>
               <MirilookGenerationRefundNotice className="mt-3" />
             </div>
@@ -4450,7 +4685,10 @@ export function MirilookStudio() {
                 }`}
                 data-mirilook-cta="style-recommendation"
                 disabled={!readyPhotos || isRecommendationBusy}
-                onClick={startRecommendation}
+                onClick={() => {
+                  startRecommendation();
+                  router.push(stepHref("recommend"));
+                }}
                 type="button"
               >
                 {isRecommendationBusy ? (
@@ -4469,10 +4707,19 @@ export function MirilookStudio() {
               </button>
             </div>
           </div>
+          <div className="flex justify-start">
+            <button
+              className="inline-flex h-11 items-center gap-1.5 rounded-md border border-white/12 px-4 text-sm font-bold text-[#e7dccb] transition hover:bg-white/8"
+              onClick={() => router.push(stepHref("notes"))}
+              type="button"
+            >
+              <ChevronLeft size={16} /> 이전
+            </button>
+          </div>
         </div>
       ) : null}
 
-      {isRecommendationBusy ? (
+      {flowStep === "recommend" && isRecommendationBusy ? (
         <LoadingPanel
           label={
             isGeneratingPreviews
@@ -4490,8 +4737,64 @@ export function MirilookStudio() {
         </p>
       ) : null}
 
-      {analysisReady && frontPhoto && sidePhoto ? (
+      {((flowStep === "recommend" &&
+        !isRecommendationBusy &&
+        !(analysisReady && frontPhoto && sidePhoto)) ||
+        (flowStep === "consult" &&
+          !isRendering &&
+          !(selectedStyle && renderedResults.length)) ||
+        (flowStep === "outfit" &&
+          !(
+            selectedStyle &&
+            (outfitRecommendations.length ||
+              outfitFullBody.isGenerating ||
+              outfitFullBody.imageUrl)
+          ))) ? (
+        <div className="mt-4 grid gap-3 rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-6 text-center">
+          <p className="text-sm font-semibold text-[#fffaf1]">아직 결과가 없어요.</p>
+          <p className="text-sm text-[#b8aa95]">
+            새로고침 등으로 진행 정보가 초기화됐어요. 처음부터 다시 시작해 주세요.
+          </p>
+          <div className="flex justify-center">
+            <button
+              className="inline-flex h-11 items-center gap-1.5 rounded-md bg-[#f3d28a] px-5 text-sm font-black text-[#1a1712] transition hover:bg-[#ffdf98]"
+              onClick={() => router.push(stepHref("photos"))}
+              type="button"
+            >
+              처음부터 시작
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {flowStep === "recommend" && analysisReady && frontPhoto && sidePhoto ? (
         <div className="mt-5 grid gap-5 border-t border-white/10 pt-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-xl font-semibold text-[#fffaf1]">추천 스타일 9장</h3>
+              <p className="mt-1 text-sm text-[#b8aa95]">
+                마음에 드는 스타일을 고르면 상담용 9장을 만들 수 있어요. 각 이미지의 저장 버튼으로 개별 저장도 가능해요.
+              </p>
+            </div>
+            <button
+              aria-label="추천 이미지 9장 3x3 한 장으로 저장하기"
+              className="inline-flex h-10 w-fit shrink-0 items-center justify-center gap-2 rounded-md border border-[#c9a96a]/55 bg-[#171511] px-3 text-sm font-bold text-[#f3d28a] transition hover:bg-[#f3d28a]/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-[#8f826f]"
+              disabled={
+                isSavingGrid ||
+                recommendations.filter((style) => style.imageUrl).length === 0
+              }
+              onClick={() => void downloadRecommendationsAsGrid()}
+              title="추천 9장을 3x3 바둑판 한 장으로 저장"
+              type="button"
+            >
+              {isSavingGrid ? (
+                <Loader2 aria-hidden="true" className="animate-spin" size={16} />
+              ) : (
+                <LayoutGrid aria-hidden="true" size={16} />
+              )}
+              {isSavingGrid ? "저장 중" : "3x3 한 장 저장"}
+            </button>
+          </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {recommendations.map((style) => (
               <StyleCard
@@ -4525,21 +4828,6 @@ export function MirilookStudio() {
                 </p>
               ))}
             </div>
-            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-[#2b281f] bg-[#11100e]/70 px-3 py-2">
-              <label
-                className="text-xs font-semibold text-[#b8aa95]"
-                htmlFor="outfit-occasion-date"
-              >
-                코디 착용 예정일
-              </label>
-              <input
-                className="h-9 rounded-md border border-white/12 bg-[#08130f] px-2 text-sm text-[#fffaf1] outline-none transition focus:border-[#f3d28a]"
-                id="outfit-occasion-date"
-                onChange={(event) => setOutfitOccasionDate(event.target.value)}
-                type="date"
-                value={outfitOccasionDate}
-              />
-            </div>
             <RecommendationControlStack
               audience={selectedAudience}
               canUseActions={Boolean(selectedStyle)}
@@ -4564,7 +4852,8 @@ export function MirilookStudio() {
         </div>
       ) : null}
 
-      {analysisReady &&
+      {flowStep === "outfit" &&
+      analysisReady &&
       selectedStyle &&
       (outfitRecommendations.length ||
         outfitFullBody.isGenerating ||
@@ -4580,17 +4869,86 @@ export function MirilookStudio() {
             outfitRecommendations={outfitRecommendations}
             selectedStyle={selectedStyle}
           />
+          <div className="mt-4 grid gap-4 rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4">
+            {!renderedResults.length ? (
+              <div className="flex justify-center">
+                <button
+                  className="mirilook-neon-recommend-cta inline-flex h-12 items-center justify-center gap-2 rounded-md bg-[#f3d28a] px-6 text-sm font-black text-[#1a1712] transition hover:bg-[#ffdf98]"
+                  onClick={generateSelectedConsultationSet}
+                  type="button"
+                >
+                  <Sparkles aria-hidden="true" size={18} /> 상담용 9장 생성하기
+                </button>
+              </div>
+            ) : null}
+            <div>
+              <p className="text-sm font-semibold text-[#fffaf1]">결과 저장</p>
+              <p className="mt-1 text-sm text-[#b8aa95]">
+                코디 이미지를 저장하거나, 히스토리에 남기고 미용사에게 공유할 수 있어요.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="inline-flex h-10 items-center gap-2 rounded-md bg-[#f3d28a] px-3 text-sm font-bold text-[#1a1712] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:bg-[#6b5b36] disabled:text-[#d8cbb8]"
+                disabled={isDownloadingRenderedResults}
+                onClick={() => void downloadAllOutfitImages()}
+                type="button"
+              >
+                {isDownloadingRenderedResults ? (
+                  <Loader2 aria-hidden="true" className="animate-spin" size={16} />
+                ) : (
+                  <Download aria-hidden="true" size={16} />
+                )}
+                모두 저장하기
+              </button>
+              <button
+                className="inline-flex h-10 items-center gap-2 rounded-md border border-[#c9a96a]/50 px-3 text-sm font-semibold text-[#f3d28a] transition hover:bg-[#f3d28a]/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-[#8f826f]"
+                disabled={historySaveNotice?.status === "saving"}
+                onClick={() => void saveCurrentConsultation()}
+                type="button"
+              >
+                {historySaveNotice?.status === "saving" ? (
+                  <Loader2 aria-hidden="true" className="animate-spin" size={16} />
+                ) : (
+                  <Check aria-hidden="true" size={16} />
+                )}
+                히스토리에 저장
+              </button>
+              <button
+                className="inline-flex h-10 items-center gap-2 rounded-md border border-[#c9a96a]/50 px-3 text-sm font-semibold text-[#f3d28a] transition hover:bg-[#f3d28a]/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-[#8f826f]"
+                disabled={isShareCreating}
+                onClick={() => void shareCurrentConsultation()}
+                type="button"
+              >
+                {isShareCreating ? (
+                  <Loader2 aria-hidden="true" className="animate-spin" size={16} />
+                ) : (
+                  <Share2 aria-hidden="true" size={16} />
+                )}
+                공유 링크 만들기
+              </button>
+              {shareUrl ? (
+                <button
+                  className="inline-flex h-10 items-center gap-2 rounded-md border border-white/12 px-3 text-sm font-semibold text-[#e7dccb] transition hover:bg-white/8"
+                  onClick={() => void nativeShareCurrentUrl()}
+                  type="button"
+                >
+                  <Share2 aria-hidden="true" size={15} /> 공유하기
+                </button>
+              ) : null}
+            </div>
+          </div>
         </div>
       ) : null}
 
-      {selectedStyle && frontPhoto && sidePhoto ? (
+      {flowStep === "consult" && selectedStyle && frontPhoto && sidePhoto ? (
         <SelectedPreviewPanel
           frontPhoto={frontPhoto}
           style={selectedStyle}
         />
       ) : null}
 
-      {selectedStyle && renderedResults.length ? (
+      {flowStep === "consult" && selectedStyle && renderedResults.length ? (
         <div className="mt-5 grid gap-4 border-t border-white/10 pt-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -4601,23 +4959,46 @@ export function MirilookStudio() {
                 선택한 추천 이미지의 방향을 먼저 배치하고, 얼굴과 옷 톤을 유지하며 나머지 각도를 생성합니다.
               </p>
             </div>
-            <button
-              aria-label={`${selectedStyle.name} 상담용 이미지 모두 저장하기`}
-              className="inline-flex h-10 w-fit shrink-0 items-center justify-center gap-2 rounded-md border border-[#c9a96a]/55 bg-[#171511] px-3 text-sm font-bold text-[#f3d28a] transition hover:bg-[#f3d28a]/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-[#8f826f]"
-              disabled={
-                isDownloadingRenderedResults || renderedResultImageCount === 0
-              }
-              onClick={() => void downloadAllRenderedResults()}
-              title="사진 9장을 한 번에 저장"
-              type="button"
-            >
-              {isDownloadingRenderedResults ? (
-                <Loader2 aria-hidden="true" className="animate-spin" size={16} />
-              ) : (
-                <Download aria-hidden="true" size={16} />
-              )}
-              {isDownloadingRenderedResults ? "저장 중" : "모두 저장하기"}
-            </button>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <button
+                aria-label={`${selectedStyle.name} 상담용 이미지 모두 저장하기`}
+                className="inline-flex h-10 w-fit shrink-0 items-center justify-center gap-2 rounded-md border border-[#c9a96a]/55 bg-[#171511] px-3 text-sm font-bold text-[#f3d28a] transition hover:bg-[#f3d28a]/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-[#8f826f]"
+                disabled={
+                  isDownloadingRenderedResults ||
+                  isSavingGrid ||
+                  renderedResultImageCount === 0
+                }
+                onClick={() => void downloadAllRenderedResults()}
+                title="사진 9장을 각각 한 장씩 저장"
+                type="button"
+              >
+                {isDownloadingRenderedResults ? (
+                  <Loader2 aria-hidden="true" className="animate-spin" size={16} />
+                ) : (
+                  <Download aria-hidden="true" size={16} />
+                )}
+                {isDownloadingRenderedResults ? "저장 중" : "모두 저장하기"}
+              </button>
+              <button
+                aria-label={`${selectedStyle.name} 상담용 이미지 3x3 한 장으로 저장하기`}
+                className="inline-flex h-10 w-fit shrink-0 items-center justify-center gap-2 rounded-md border border-[#c9a96a]/55 bg-[#171511] px-3 text-sm font-bold text-[#f3d28a] transition hover:bg-[#f3d28a]/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-[#8f826f]"
+                disabled={
+                  isDownloadingRenderedResults ||
+                  isSavingGrid ||
+                  renderedResultImageCount === 0
+                }
+                onClick={() => void downloadRenderedResultsAsGrid()}
+                title="사진 9장을 3x3 바둑판 한 장으로 저장"
+                type="button"
+              >
+                {isSavingGrid ? (
+                  <Loader2 aria-hidden="true" className="animate-spin" size={16} />
+                ) : (
+                  <LayoutGrid aria-hidden="true" size={16} />
+                )}
+                {isSavingGrid ? "저장 중" : "3x3 한 장 저장"}
+              </button>
+            </div>
           </div>
           {!isRendering &&
           renderedResults.some((result) => result.error && !result.imageUrl) ? (
@@ -4673,6 +5054,22 @@ export function MirilookStudio() {
               results={renderedResults}
               selectedStyle={selectedStyle}
             />
+          ) : null}
+          {!(
+            outfitRecommendations.length ||
+            outfitFullBody.isGenerating ||
+            outfitFullBody.imageUrl ||
+            outfitFullBody.error
+          ) ? (
+            <div className="flex justify-center">
+              <button
+                className="mirilook-neon-recommend-cta inline-flex h-12 items-center justify-center gap-2 rounded-md bg-[#f3d28a] px-6 text-sm font-black text-[#1a1712] transition hover:bg-[#ffdf98]"
+                onClick={() => void showOutfitRecommendations()}
+                type="button"
+              >
+                <Sparkles aria-hidden="true" size={18} /> 코디 추천 받기
+              </button>
+            </div>
           ) : null}
           <div className="grid gap-4 rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
             <div>
@@ -4787,7 +5184,7 @@ export function MirilookStudio() {
         </div>
       ) : null}
 
-      {historyItems.length ? (
+      {(flowStep === "consult" || flowStep === "outfit") && historyItems.length ? (
         <HistoryPanel
           items={historyItems}
           onPrint={openPrintableReport}
@@ -4855,36 +5252,6 @@ function AudienceSelector({
   );
 }
 
-function FlowStepper({ activeStep }: { activeStep: number }) {
-  const steps = ["사진", "선호", "추천", "선택", "상담 보드"];
-
-  return (
-    <div className="mb-4 grid gap-2 rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-3 sm:grid-cols-3 lg:grid-cols-5">
-      {steps.map((step, index) => (
-        <div
-          className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold ${
-            index <= activeStep
-              ? "bg-[#30271a] text-[#fffaf1]"
-              : "bg-white/5 text-[#8f826f]"
-          }`}
-          key={step}
-        >
-          <span
-            className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs ${
-              index <= activeStep
-                ? "bg-[#f3d28a] text-[#1a1712]"
-                : "bg-[#211d17] text-[#8f826f]"
-            }`}
-          >
-            {index + 1}
-          </span>
-          {step}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function ConsentNotice({
   accepted,
   onChange,
@@ -4910,7 +5277,7 @@ function ConsentNotice({
           </span>
           <input
             checked={accepted}
-            className="size-7 rounded-md accent-[#f3d28a] md:size-8"
+            className="size-7 rounded-md accent-[#fb5c8d] md:size-8"
             onChange={(event) => onChange(event.target.checked)}
             type="checkbox"
           />
@@ -5346,35 +5713,31 @@ function FaceQualityChip({
 
   if (quality === "analyzing") {
     return (
-      <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-[#241f17] px-1.5 py-0.5 text-[10px] font-semibold text-[#b8aa95] sm:text-[11px]">
+      <span
+        className="mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold sm:text-[11px]"
+        style={{ background: "#f2f4f6", border: "1px solid #e4e7ea", color: "#5f6b7a" }}
+      >
         <Loader2 aria-hidden="true" className="size-3 animate-spin" />
         사진 적합도 확인 중…
       </span>
     );
   }
 
-  const palette =
+  // 신호등: good=초록 / fair=노랑 / bad=빨강. 인라인 스타일로 스킨 리맵과 무관하게 고정.
+  const tone =
     quality.level === "good"
-      ? "border-[#8bcf9f]/55 bg-[#173321]/70 text-[#bce8c7]"
+      ? { bg: "#e7f6ec", border: "#b7e0c4", text: "#127a45", dot: "#1aa35c" }
       : quality.level === "fair"
-        ? "border-[#e8c879]/55 bg-[#332a16]/70 text-[#f3d28a]"
-        : "border-[#e88f8f]/55 bg-[#33181a]/70 text-[#f3b4b4]";
-  const dotColor =
-    quality.level === "good"
-      ? "bg-[#8bcf9f]"
-      : quality.level === "fair"
-        ? "bg-[#e8c879]"
-        : "bg-[#e88f8f]";
+        ? { bg: "#fff4e0", border: "#f3d9a6", text: "#a56a00", dot: "#eaa61a" }
+        : { bg: "#fdecec", border: "#f4c4c1", text: "#c0342f", dot: "#e0554f" };
 
   return (
     <span
-      className={`mt-1 flex flex-col gap-0.5 rounded-md border px-1.5 py-1 text-[10px] leading-tight sm:text-[11px] ${palette}`}
+      className="mt-1 flex flex-col gap-0.5 rounded-md px-1.5 py-1 text-[10px] leading-tight sm:text-[11px]"
+      style={{ background: tone.bg, border: `1px solid ${tone.border}`, color: tone.text }}
     >
       <span className="flex items-center gap-1 font-bold">
-        <span
-          aria-hidden="true"
-          className={`size-2 shrink-0 rounded-full ${dotColor}`}
-        />
+        <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: tone.dot }} />
         사진 적합도 · {quality.label}
       </span>
       <span className="hidden font-medium opacity-90 sm:block">
@@ -5385,6 +5748,7 @@ function FaceQualityChip({
 }
 
 function UploadBox({
+  audience,
   badge,
   hint,
   label,
@@ -5393,6 +5757,7 @@ function UploadBox({
   slot,
   onClick,
 }: {
+  audience: MirilookAudience;
   badge: string;
   hint: string;
   label: string;
@@ -5403,10 +5768,13 @@ function UploadBox({
 }) {
   const guide = slotCaptureGuide[slot];
   const GuideIcon = guide.icon;
+  const exampleSrc = `/guide/upload-example-${
+    audience === "female" ? "female" : "male"
+  }-${slot}.png`;
 
   return (
     <button
-      className={`aspect-[3/4] min-h-0 overflow-hidden rounded-md border text-left transition sm:aspect-[4/5] lg:aspect-[5/4] ${
+      className={`aspect-[3/4] min-h-0 overflow-hidden rounded-md border text-left transition sm:aspect-[4/5] lg:aspect-[3/4] ${
         photo
           ? "border-[#c9a96a]/65 bg-[#0f0e0c]"
           : "border-dashed border-[#c9a96a]/55 bg-[#0f0e0c]/72 hover:border-[#f3d28a] hover:bg-[#1d1912]/86"
@@ -5438,11 +5806,17 @@ function UploadBox({
         </div>
       ) : (
         <div className="flex h-full flex-col items-center justify-center gap-1.5 p-1.5 text-center sm:gap-2 sm:p-3 lg:gap-4 lg:p-5">
-          <span className="relative flex size-9 items-center justify-center rounded-full border border-[#c9a96a]/60 bg-[#c9a96a]/14 text-[#f3d28a] sm:size-12 lg:size-16">
-            <ScanFace aria-hidden="true" className="size-5 sm:size-6 lg:size-7" />
+          <span className="relative flex size-16 items-center justify-center overflow-hidden rounded-full border border-[#c9a96a]/60 bg-white text-[#f3d28a] shadow-[0_0_0_3px_rgba(201,169,106,0.16)] sm:size-24 lg:size-28">
+            <img
+              alt={`${label} 예시`}
+              aria-hidden="true"
+              className="h-full w-full object-cover"
+              draggable={false}
+              src={exampleSrc}
+            />
             {slot !== "front" ? (
-              <span className="absolute -bottom-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full border border-[#c9a96a]/60 bg-[#11100e] text-[#f3d28a] sm:size-5 lg:-bottom-1 lg:-right-1 lg:size-6">
-                <GuideIcon aria-hidden="true" className="size-2.5 sm:size-3 lg:size-3.5" />
+              <span className="absolute -bottom-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full border border-[#c9a96a]/60 bg-[#11100e] text-[#f3d28a] sm:size-6 lg:-bottom-1 lg:-right-1 lg:size-7">
+                <GuideIcon aria-hidden="true" className="size-2.5 sm:size-3.5 lg:size-4" />
               </span>
             ) : null}
           </span>
@@ -5576,10 +5950,10 @@ function RecommendationActionPanel({
           ? `선택된 스타일 · ${selectedStyle.name}`
           : "추천 이미지 1장을 먼저 선택해 주세요"}
       </p>
-      <div className="mt-3 grid gap-2 md:grid-cols-2">
+      <div className="mt-3 flex flex-wrap justify-center gap-3">
         {actions.map((action) => (
           <button
-            className={`relative overflow-hidden inline-flex h-11 items-center justify-center gap-2 rounded-md px-3 text-sm font-bold transition ${
+            className={`relative overflow-hidden inline-flex h-11 w-full max-w-[15.5rem] items-center justify-center gap-2 rounded-md px-3 text-sm font-bold transition ${
               action.disabled
                 ? "cursor-not-allowed border border-white/10 bg-[#24211c] text-[#8f826f]"
                 : "bg-[#f3d28a] text-[#1a1712] hover:bg-[#ffdf98]"
@@ -5596,11 +5970,6 @@ function RecommendationActionPanel({
               <Sparkles aria-hidden="true" size={16} />
             )}
             <span>{action.label}</span>
-            {typeof action.progress === "number" ? (
-              <span className="tabular-nums text-[#3a2f16]">
-                {action.progress}%
-              </span>
-            ) : null}
             {typeof action.progress === "number" ? (
               <span
                 aria-hidden="true"
@@ -6142,7 +6511,7 @@ function ExpansionImagePreviewDialog({
     <div
       aria-label={`${preview.title} 크게 보기`}
       aria-modal="true"
-      className="fixed left-0 top-0 z-[1000] grid h-[100dvh] w-[100dvw] place-items-center overflow-hidden bg-black/84 p-4 backdrop-blur-sm"
+      className="mirilook-lightbox fixed left-0 top-0 z-[1000] grid h-[100dvh] w-[100dvw] place-items-center overflow-hidden bg-black/84 p-4 backdrop-blur-sm"
       onClick={onClose}
       role="dialog"
     >
@@ -6250,6 +6619,9 @@ function StyleMemoPanel({
       <p className="mt-2 text-sm leading-6 text-[#b8aa95]">
         원하는 분위기, 목적, 평소 고민을 적으면 추천과 생성 프롬프트에 함께 반영합니다.
         아래 예시를 누르면 바로 입력됩니다.
+      </p>
+      <p className="mt-1 text-xs font-semibold text-[#8bcf9f]">
+        선택 사항이에요 — 입력하지 않아도 추천받을 수 있어요.
       </p>
       <textarea
         className="mt-4 min-h-28 w-full resize-y rounded-md border border-[#8bcf9f]/28 bg-[#08130f] p-3 text-sm leading-6 text-[#fffaf1] outline-none transition placeholder:text-[#7fa58c] focus:border-[#8bcf9f]"
@@ -6452,6 +6824,9 @@ function CelebrityReferencePanel({
           <p className="mt-2 text-sm leading-6 text-[#b8aa95]">
             연예인별로 사진을 묶어 올리면 한 사람당 추천 9장 중 1칸만 차지합니다.
             같은 연예인의 여러 사진은 헤어 방향을 더 정확히 읽는 보조 자료로만 사용합니다.
+          </p>
+          <p className="mt-1 text-xs font-semibold text-[#9cc8ff]">
+            선택 사항이에요 — 없어도 추천받을 수 있어요.
           </p>
         </div>
         <button
@@ -7519,41 +7894,22 @@ function HairColorPanel({
       </p>
       <div className="mt-4 min-w-0 pb-1">
         <div
-          className="grid w-full min-w-0 gap-1 rounded-md border border-white/10 bg-[#080705] p-2 sm:gap-1.5"
+          className="mirilook-hair-chart grid w-full min-w-0 gap-1 rounded-md border border-white/10 bg-[#080705] p-2 sm:gap-1.5"
           style={{
-            gridTemplateColumns: `clamp(34px, 8vw, 44px) repeat(${hairColorChartColumns.length}, minmax(0, 1fr))`,
+            gridTemplateColumns: `repeat(${hairColorChartColumns.length}, minmax(0, 1fr))`,
           }}
         >
-          <div
-            aria-hidden="true"
-            className="rounded-sm border border-white/8 bg-[#15130f]"
-            style={{ gridColumn: 1, gridRow: 1 }}
-          />
           {hairColorChartColumns.map((column, index) => (
             <div
-              className="flex min-h-10 items-center justify-center overflow-hidden rounded-sm border border-white/10 px-0.5 text-center text-[8px] font-black leading-3 text-[#fffaf1] sm:px-1 sm:text-[11px] sm:leading-4"
+              className="flex min-h-9 items-center justify-center overflow-hidden rounded-sm border border-white/10 px-0.5 text-center text-[8px] font-black leading-3 text-[#fffaf1] sm:px-1 sm:text-[11px] sm:leading-4"
               key={column.id}
               style={{
                 backgroundColor: column.tone,
-                gridColumn: index + 2,
+                gridColumn: index + 1,
                 gridRow: 1,
               }}
             >
               {column.label}
-            </div>
-          ))}
-          {hairColorChartRows.map((row, rowIndex) => (
-            <div
-              className="flex min-h-16 flex-col items-center justify-center overflow-hidden rounded-sm border border-white/10 bg-[#171511] px-0.5 text-center sm:px-1"
-              key={row.level}
-              style={{ gridColumn: 1, gridRow: rowIndex + 2 }}
-            >
-              <span className="text-xs font-black text-[#f3d28a] sm:text-sm">
-                {row.label}
-              </span>
-              <span className="mt-1 hidden text-[8px] font-bold leading-3 text-[#9d917f] sm:block sm:text-[9px]">
-                {row.tone}
-              </span>
             </div>
           ))}
           {hairColorChartRows.flatMap((row, rowIndex) =>
@@ -7563,7 +7919,7 @@ function HairColorPanel({
                 className="min-h-16 rounded-sm border border-white/6 bg-[#100f0d]/72"
                 key={`${row.level}-${column.id}`}
                 style={{
-                  gridColumn: columnIndex + 2,
+                  gridColumn: columnIndex + 1,
                   gridRow: rowIndex + 2,
                 }}
               />
@@ -7580,9 +7936,12 @@ function HairColorPanel({
               onClick={() => onSelect(color.id)}
               style={{
                 backgroundColor: color.swatch,
-                borderColor: selected ? "#f3d28a" : "rgba(255,255,255,0.16)",
-                boxShadow: buttonStyle.boxShadow,
-                gridColumn: (color.chartColumn ?? 1) + 1,
+                borderColor: selected ? "#fb5c8d" : "rgba(255,255,255,0.16)",
+                borderWidth: selected ? 3 : 1,
+                boxShadow: selected
+                  ? "0 0 0 2px rgba(251,92,141,0.5)"
+                  : buttonStyle.boxShadow,
+                gridColumn: color.chartColumn ?? 1,
                 gridRow: (color.chartRow ?? 1) + 1,
               }}
               type="button"
@@ -7661,14 +8020,18 @@ function StyleCard({
             {style.isGenerating ? (
               <NeonSpinner size={58} />
             ) : null}
-            <span className="text-xl font-bold text-[#fffaf1]">
-              {style.error ? "생성 실패" : "AI 합성 중"}
-            </span>
+            {style.error ? (
+              <span className="text-xl font-bold text-[#fffaf1]">생성 실패</span>
+            ) : (
+              <span className="text-4xl font-black tabular-nums leading-none text-[#fffaf1]">
+                {progress ?? 0}%
+              </span>
+            )}
             {progress !== undefined && !style.error ? (
               <GenerationProgressBar progress={progress} />
             ) : null}
             <span className="text-sm font-semibold text-[#b8aa95]">
-              {style.error ? "자동 재시도 후 확인 필요" : style.name}
+              {style.error ? "자동 재시도 후 확인 필요" : "AI 합성 중"}
             </span>
             {style.error ? (
               <span className="max-w-52 text-xs leading-5 text-[#d8cbb8]">
@@ -7823,7 +8186,7 @@ function RenderedResultPreviewDialog({
     <ViewportCenteredOverlay
       aria-label={`${selectedStyle.name} 상담 이미지 크게 보기`}
       aria-modal="true"
-      className="bg-black/84"
+      className="mirilook-lightbox bg-black/84"
       onClick={onClose}
       role="dialog"
     >
@@ -7965,12 +8328,17 @@ function ResultCard({
             {result.isGenerating ? (
               <NeonSpinner size={58} />
             ) : null}
-            <span className="text-lg font-bold text-[#fffaf1]">
-              {result.error ? "생성 실패" : "생성 중"}
-            </span>
+            {result.error ? (
+              <span className="text-lg font-bold text-[#fffaf1]">생성 실패</span>
+            ) : (
+              <span className="text-4xl font-black tabular-nums leading-none text-[#fffaf1]">
+                {progress ?? 0}%
+              </span>
+            )}
             {progress !== undefined && !result.error ? (
               <GenerationProgressBar progress={progress} />
             ) : null}
+            <span className="text-sm font-semibold text-[#b8aa95]">생성 중</span>
             {result.error ? (
               <span className="max-w-52 text-xs leading-5 text-[#d8cbb8]">
                 자동 재시도 후 실패 · {getShortGenerationError(result.error)}
@@ -9899,16 +10267,16 @@ function buildPaymentEntitlementStatus(result: PaymentEntitlementResult) {
 
   if (premium?.active) {
     if (result.reason === "admin_test_account") {
-      return "관리자 테스트 계정으로 프리미엄 확장 상담이 활성화되었습니다. 결제 없이 코디/메이크업 조언을 테스트할 수 있습니다.";
+      return "관리자 테스트 계정으로 프리미엄 확장 상담이 활성화되었습니다. 결제 없이 코디 조언을 테스트할 수 있습니다.";
     }
 
     return premium.expiresAt
-      ? `프리미엄 확장 상담이 활성화되었습니다. ${formatHistoryDate(premium.expiresAt)}까지 코디/메이크업 조언을 정식 권한으로 사용할 수 있습니다.`
-      : "프리미엄 확장 상담이 활성화되었습니다. 코디/메이크업 조언을 정식 권한으로 사용할 수 있습니다.";
+      ? `프리미엄 확장 상담이 활성화되었습니다. ${formatHistoryDate(premium.expiresAt)}까지 코디 조언을 정식 권한으로 사용할 수 있습니다.`
+      : "프리미엄 확장 상담이 활성화되었습니다. 코디 조언을 정식 권한으로 사용할 수 있습니다.";
   }
 
   if (result.reason === "not_authenticated") {
-    return "로그인 후 프리미엄 스타일 리포트를 결제하면 코디/메이크업 확장 상담 권한이 계정에 연결됩니다.";
+    return "로그인 후 프리미엄 스타일 리포트를 결제하면 코디 확장 상담 권한이 계정에 연결됩니다.";
   }
 
   if (result.reason === "supabase_not_configured") {
@@ -9919,7 +10287,7 @@ function buildPaymentEntitlementStatus(result: PaymentEntitlementResult) {
     return "프리미엄 권한 확인이 지연되고 있습니다. 로그인과 결제 상태를 확인한 뒤 다시 시도해 주세요.";
   }
 
-  return "프리미엄 스타일 리포트 결제 후 코디/메이크업 확장 상담이 계정에 연결됩니다.";
+  return "프리미엄 스타일 리포트 결제 후 코디 확장 상담이 계정에 연결됩니다.";
 }
 
 async function shareConsultationUrl({
@@ -10112,6 +10480,110 @@ function waitForDownloadStep() {
   return new Promise<void>((resolve) => {
     window.setTimeout(resolve, 120);
   });
+}
+
+function loadImageElementForGrid(imageUrl: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+
+    if (!imageUrl.startsWith("data:") && !imageUrl.startsWith("blob:")) {
+      image.crossOrigin = "anonymous";
+    }
+
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("image_load_failed"));
+    image.src = imageUrl;
+  });
+}
+
+// 여러 장의 이미지를 3열 바둑판(3x3 등)으로 합쳐 단일 이미지 파일로 저장.
+// 한 단계의 이미지들은 같은 비율이라 여백 없이 채워지며, 각 칸은 가장 큰 이미지 기준으로 정렬한다.
+async function downloadImagesAsGrid(
+  items: Array<{ url: string; mirrored?: boolean }>,
+  fileName: string,
+  options: { columns?: number; gap?: number; background?: string } = {},
+) {
+  const columns = options.columns ?? 3;
+  const gap = options.gap ?? 18;
+  const background = options.background ?? "#ffffff";
+
+  const loaded: Array<{ image: HTMLImageElement; mirrored: boolean }> = [];
+  for (const item of items) {
+    try {
+      const image = await loadImageElementForGrid(item.url);
+      loaded.push({ image, mirrored: Boolean(item.mirrored) });
+    } catch (error) {
+      console.warn("grid image load failed, skipping", error);
+    }
+  }
+
+  if (!loaded.length) {
+    throw new Error("no_grid_images");
+  }
+
+  const cellWidth = Math.max(
+    ...loaded.map(({ image }) => image.naturalWidth || image.width),
+  );
+  const cellHeight = Math.max(
+    ...loaded.map(({ image }) => image.naturalHeight || image.height),
+  );
+  const rows = Math.ceil(loaded.length / columns);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = columns * cellWidth + (columns + 1) * gap;
+  canvas.height = rows * cellHeight + (rows + 1) * gap;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("canvas_context_unavailable");
+  }
+
+  context.fillStyle = background;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  loaded.forEach(({ image, mirrored }, index) => {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    const cellX = gap + column * (cellWidth + gap);
+    const cellY = gap + row * (cellHeight + gap);
+
+    const imageWidth = image.naturalWidth || image.width;
+    const imageHeight = image.naturalHeight || image.height;
+    const scale = Math.min(cellWidth / imageWidth, cellHeight / imageHeight);
+    const drawWidth = imageWidth * scale;
+    const drawHeight = imageHeight * scale;
+    const drawX = cellX + (cellWidth - drawWidth) / 2;
+    const drawY = cellY + (cellHeight - drawHeight) / 2;
+
+    if (mirrored) {
+      context.save();
+      context.translate(drawX + drawWidth, drawY);
+      context.scale(-1, 1);
+      context.drawImage(image, 0, 0, drawWidth, drawHeight);
+      context.restore();
+    } else {
+      context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+    }
+  });
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (result) =>
+        result ? resolve(result) : reject(new Error("canvas_blob_unavailable")),
+      "image/jpeg",
+      0.95,
+    );
+  });
+
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }
 
 function createMirroredImageObjectUrl(imageUrl: string) {
