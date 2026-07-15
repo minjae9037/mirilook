@@ -18,8 +18,7 @@ export default function RefundPage() {
         <h1 className="mt-3 text-[26px] font-extrabold tracking-[-0.02em] text-[#fffaf1] sm:text-[32px]">
           취소·환불·교환 정책
         </h1>
-        <p className="mt-3">시행일: 2026. 07. 02.</p>
-        <p className="mt-2">
+        <p className="mt-3">
           본 정책은 미리룩 유료 서비스(H머니 및 AI 생성 기능)의 서비스 제공시기,
           청약철회·취소, 교환, 환불 기준을 안내합니다.
         </p>
