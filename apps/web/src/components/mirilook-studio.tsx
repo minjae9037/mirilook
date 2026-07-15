@@ -5774,9 +5774,9 @@ function UploadBox({
 
   return (
     <button
-      className={`aspect-[3/4] min-h-0 overflow-hidden rounded-md border text-left transition sm:aspect-[4/5] lg:aspect-[3/4] ${
+      className={`min-h-0 overflow-hidden rounded-md border text-left transition sm:aspect-[4/5] lg:aspect-[3/4] ${
         photo
-          ? "border-[#c9a96a]/65 bg-[#0f0e0c]"
+          ? "aspect-[3/4] border-[#c9a96a]/65 bg-[#0f0e0c]"
           : "border-dashed border-[#c9a96a]/55 bg-[#0f0e0c]/72 hover:border-[#f3d28a] hover:bg-[#1d1912]/86"
       }`}
       onClick={onClick}
@@ -5806,7 +5806,7 @@ function UploadBox({
         </div>
       ) : (
         <div className="flex h-full flex-col items-center justify-center gap-1.5 p-1.5 text-center sm:gap-2 sm:p-3 lg:gap-4 lg:p-5">
-          <span className="relative flex size-20 items-center justify-center overflow-hidden rounded-full border border-[#c9a96a]/60 bg-white text-[#f3d28a] shadow-[0_0_0_3px_rgba(201,169,106,0.16)] sm:size-28 lg:size-36">
+          <span className="relative flex aspect-square w-[68%] min-w-[3.5rem] max-w-[9rem] shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#c9a96a]/60 bg-white text-[#f3d28a] shadow-[0_0_0_3px_rgba(201,169,106,0.16)]">
             <img
               alt={`${label} 예시`}
               aria-hidden="true"
