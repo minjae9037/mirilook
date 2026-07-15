@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 
 :root {
   --background: #11100e;
@@ -7,39 +8,38 @@
 }
 
 html[data-mirilook-theme="light"] {
-  --background: #f6f1e7;
-  --foreground: #1d1912;
+  --background: #f7f8fa;
+  --foreground: #191f28;
   color-scheme: light;
 
-  /* Light palette tokens. The app uses hardcoded dark hex utilities inline;
-     these tokens drive a complete semantic remap below so light mode reads as
-     a single coherent warm-paper theme instead of patched-over dark mode. */
-  --ml-card: #fffdf9; /* elevated cards sitting on the page */
-  --ml-page: #f6f1e7; /* base page surface */
-  --ml-panel: #fbf6ec; /* sections / panels */
-  --ml-sunken: #efe7d6; /* inputs, wells, recessed areas */
-  --ml-warm: #f6ead0; /* gold-tinted raised / hover */
-  --ml-warm-strong: #f0e0b8; /* selected / active gold tint */
+  /* Light(핑크) 팔레트 토큰. 스튜디오/서브페이지는 다크 hex 유틸을 인라인으로 쓰므로
+     아래 시맨틱 리맵이 이 토큰으로 전체를 라이트+핑크로 통일한다. */
+  --ml-card: #ffffff; /* elevated cards */
+  --ml-page: #f7f8fa; /* base page surface */
+  --ml-panel: #ffffff; /* sections / panels */
+  --ml-sunken: #f2f4f6; /* inputs, wells, recessed areas */
+  --ml-warm: #ffeef4; /* 핑크 틴트 raised / hover */
+  --ml-warm-strong: #ffdce8; /* 핑크 틴트 selected / active */
 
-  --ml-info: #e9f1fb;
-  --ml-success: #e7f4ea;
-  --ml-danger: #fbeae2;
+  --ml-info: #eaf1fb;
+  --ml-success: #e8f6ec;
+  --ml-danger: #fdecef;
 
-  --ml-ink: #1d1912; /* headings */
-  --ml-body: #382f22; /* body text */
-  --ml-muted: #6e6450; /* secondary / muted text (>=4.5:1 on paper) */
-  --ml-gold: #8a5d1c; /* gold accent text on light */
+  --ml-ink: #191f28; /* headings */
+  --ml-body: #333b47; /* body text */
+  --ml-muted: #5f6b7a; /* secondary / muted (>=4.5:1 on white) */
+  --ml-gold: #ea4a7c; /* 핑크 액센트 텍스트 (구 gold) */
 
   --ml-info-ink: #1d4e8a;
-  --ml-success-ink: #1f6a3d;
-  --ml-danger-ink: #b1384d;
+  --ml-success-ink: #1f7a45;
+  --ml-danger-ink: #c0342f;
 
-  --ml-border: rgba(120, 92, 44, 0.22);
-  --ml-border-soft: rgba(120, 92, 44, 0.14);
-  --ml-gold-border: #d6b878;
+  --ml-border: rgba(25, 31, 40, 0.12);
+  --ml-border-soft: rgba(25, 31, 40, 0.08);
+  --ml-gold-border: #f3c6d6; /* 핑크 보더 */
   --ml-info-border: #b6d0ef;
-  --ml-success-border: #a6d6b9;
-  --ml-danger-border: #efb6ab;
+  --ml-success-border: #a9dcbb;
+  --ml-danger-border: #f2b8b3;
 }
 
 @theme inline {
@@ -99,22 +99,17 @@ button {
 }
 
 ::selection {
-  background: #f3d28a;
-  color: #11100e;
+  background: #fb5c8d;
+  color: #fff;
 }
 
-/* Accessibility: always show a visible focus ring for keyboard users, even on
-   elements that set Tailwind `outline-none`. Mouse clicks don't trigger
-   :focus-visible, so this stays invisible for pointer users. The ring color
-   adapts to theme (deep gold on light, gold on dark) for contrast. */
+/* Accessibility: 키보드 포커스 링(핑크). 마우스 클릭엔 나타나지 않음. */
 :focus-visible {
-  outline: 2px solid var(--ml-gold, #f3d28a) !important;
+  outline: 2px solid var(--ml-gold, #fb5c8d) !important;
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-/* Respect users who prefer reduced motion: drop transforms/animations while
-   keeping opacity/color cues that aid comprehension. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -126,49 +121,58 @@ button {
   }
 }
 
+/* 라운드 일관화(하트스코어 톤): 페이지마다 제각각인 rounded-md(6px) 모서리를
+   전역에서 12px로 통일해 버튼·입력·카드·칩을 한결 둥글고 일관되게 만든다.
+   반응형/개별 큰 라운드(rounded-2xl/full/[..]) 유틸은 건드리지 않는다. */
+[class~="rounded-md"] {
+  border-radius: 0.75rem;
+}
+
 /* =========================================================================
-   LIGHT THEME REMAP
-   The inline classes use literal dark hex values. Each group below maps a
-   tier of the dark palette onto a coherent light surface/ink/accent token.
-   Prefix matching (no closing bracket) also catches opacity variants
-   like bg-[#0f0e0c]/86.
+   LIGHT THEME REMAP (핑크 라이트)
+   인라인 다크 hex 유틸을 시맨틱 토큰으로 통일 리맵.
+   ★ 배경(background) 규칙은 !important 미사용 → 스와치 등 인라인 실제 색이 이김.
+     (선택자 특정도가 유틸(0,1,0)보다 높아 !important 없이도 유틸은 이김)
    ========================================================================= */
 
 html[data-mirilook-theme="light"] body {
   background:
-    radial-gradient(circle at top left, rgba(243, 210, 138, 0.16), transparent 38rem),
+    radial-gradient(circle at top left, rgba(251, 92, 141, 0.08), transparent 38rem),
     var(--ml-page);
 }
 
-/* Hero scrims: fade the dark salon photo into the light page so the
-   (now dark) hero text stays readable and the page reads as light. */
+/* Hero scrims: 다크 살롱 사진을 라이트 핑크로 페이드 → 텍스트 가독성 */
 html[data-mirilook-theme="light"] [data-mirilook-hero-scrim="side"] {
   background: linear-gradient(
     90deg,
-    rgba(246, 241, 231, 0.95) 0%,
-    rgba(246, 241, 231, 0.82) 44%,
-    rgba(246, 241, 231, 0.5) 100%
+    rgba(255, 245, 248, 0.96) 0%,
+    rgba(255, 245, 248, 0.82) 46%,
+    rgba(255, 245, 248, 0.5) 100%
   ) !important;
 }
 
 html[data-mirilook-theme="light"] [data-mirilook-hero-scrim="base"] {
   background: linear-gradient(
     180deg,
-    rgba(246, 241, 231, 0.35) 0%,
-    rgba(246, 241, 231, 0.62) 48%,
+    rgba(255, 245, 248, 0.35) 0%,
+    rgba(255, 245, 248, 0.62) 48%,
     var(--ml-page) 100%
   ) !important;
 }
 
-/* ---- Surfaces: cards (deepest dark tier) ---- */
+/* ---- Surfaces: cards (가장 깊은 다크 티어) + 컬러차트 컨테이너/플레이스홀더 ---- */
 html[data-mirilook-theme="light"] [class*="bg-[#0f0e0c"],
-html[data-mirilook-theme="light"] [class*="bg-[#0c0b0a"] {
-  background-color: var(--ml-card) !important;
+html[data-mirilook-theme="light"] [class*="bg-[#0c0b0a"],
+html[data-mirilook-theme="light"] [class*="bg-[#080705"],
+html[data-mirilook-theme="light"] [class*="bg-[#100f0d"],
+html[data-mirilook-theme="light"] [class*="bg-[#0d0c0b"],
+html[data-mirilook-theme="light"] [class*="bg-[#0b0a09"] {
+  background-color: var(--ml-card);
 }
 
 /* ---- Surfaces: page-level ---- */
 html[data-mirilook-theme="light"] [class*="bg-[#11100e"] {
-  background-color: var(--ml-page) !important;
+  background-color: var(--ml-page);
 }
 
 /* ---- Surfaces: panels / sections ---- */
@@ -184,8 +188,9 @@ html[data-mirilook-theme="light"] [class*="bg-[#211b11"],
 html[data-mirilook-theme="light"] [class*="bg-[#242322"],
 html[data-mirilook-theme="light"] [class*="bg-[#24211c"],
 html[data-mirilook-theme="light"] [class*="bg-[#242018"],
+html[data-mirilook-theme="light"] [class*="bg-[#241f17"],
 html[data-mirilook-theme="light"] [class*="bg-[#241d14"] {
-  background-color: var(--ml-panel) !important;
+  background-color: var(--ml-panel);
 }
 
 /* ---- Surfaces: sunken (inputs / wells) ---- */
@@ -197,25 +202,22 @@ html[data-mirilook-theme="light"] [class*="bg-[#2b2216"],
 html[data-mirilook-theme="light"] [class*="bg-[#2b2113"],
 html[data-mirilook-theme="light"] [class*="bg-[#2a2116"],
 html[data-mirilook-theme="light"] [class*="bg-[#8f826f"] {
-  background-color: var(--ml-sunken) !important;
+  background-color: var(--ml-sunken);
 }
 
-/* ---- Surfaces: warm raised / hover (gold-tinted brown) ---- */
+/* ---- Surfaces: warm raised / hover ---- */
 html[data-mirilook-theme="light"] [class*="bg-[#30271a"],
 html[data-mirilook-theme="light"] [class*="bg-[#2d2414"],
 html[data-mirilook-theme="light"] [class*="bg-[#3a2e18"],
-html[data-mirilook-theme="light"] [class*="bg-[#3a2d17"],
 html[data-mirilook-theme="light"] [class*="bg-[#342816"],
-html[data-mirilook-theme="light"] [class*="bg-[#322713"],
-html[data-mirilook-theme="light"] [class*="bg-[#3a2c17"] {
-  background-color: var(--ml-warm) !important;
+html[data-mirilook-theme="light"] [class*="bg-[#322713"] {
+  background-color: var(--ml-warm);
 }
 
-/* ---- Surfaces: strong gold tint (selected / active) ---- */
+/* ---- Surfaces: strong tint (selected / active) ---- */
 html[data-mirilook-theme="light"] [class*="bg-[#4a412e"],
-html[data-mirilook-theme="light"] [class*="bg-[#675737"],
-html[data-mirilook-theme="light"] [class*="bg-[#c9a96a"] {
-  background-color: var(--ml-warm-strong) !important;
+html[data-mirilook-theme="light"] [class*="bg-[#675737"] {
+  background-color: var(--ml-warm-strong);
 }
 
 /* ---- Surfaces: info (blue-tinted dark) ---- */
@@ -226,7 +228,7 @@ html[data-mirilook-theme="light"] [class*="bg-[#13283c"],
 html[data-mirilook-theme="light"] [class*="bg-[#123544"],
 html[data-mirilook-theme="light"] [class*="bg-[#102136"],
 html[data-mirilook-theme="light"] [class*="bg-[#0c1824"] {
-  background-color: var(--ml-info) !important;
+  background-color: var(--ml-info);
 }
 
 /* ---- Surfaces: success (green-tinted dark) ---- */
@@ -241,23 +243,55 @@ html[data-mirilook-theme="light"] [class*="bg-[#15331f"],
 html[data-mirilook-theme="light"] [class*="bg-[#14271d"],
 html[data-mirilook-theme="light"] [class*="bg-[#0d1f18"],
 html[data-mirilook-theme="light"] [class*="bg-[#08130f"] {
-  background-color: var(--ml-success) !important;
+  background-color: var(--ml-success);
 }
+/* 메모 '예시 보기'(#2a6b46)·hover(#317a52)는 솔리드 초록 유지 → 흰 글자 가독 */
 
 /* ---- Surfaces: danger (red-tinted dark) ---- */
 html[data-mirilook-theme="light"] [class*="bg-[#391c17"],
 html[data-mirilook-theme="light"] [class*="bg-[#30151c"],
 html[data-mirilook-theme="light"] [class*="bg-[#4a231d"],
 html[data-mirilook-theme="light"] [class*="bg-[#3a1c1c"],
+html[data-mirilook-theme="light"] [class*="bg-[#33181a"],
 html[data-mirilook-theme="light"] [class*="bg-[#2a1411"] {
-  background-color: var(--ml-danger) !important;
+  background-color: var(--ml-danger);
 }
 
-/* ---- Text: headings (brightest cream -> ink) ---- */
+/* ---- 골드/마젠타 액센트 → 핑크: 솔리드 버튼/선택 카드 ----
+   ★ :not([class*="/"]) 미사용 — 같은 요소에 shadow-[#000]/30 등 슬래시 클래스가 있으면
+     통째로 제외되어 남성 골드카드가 핑크로 안 바뀌던 함정. 소스순서 틴트 override로 처리. */
+html[data-mirilook-theme="light"] [class*="bg-[#f3d28a]"],
+html[data-mirilook-theme="light"] [class*="bg-[#ffdf98]"],
+html[data-mirilook-theme="light"] [class*="bg-[#c9a96a]"],
+html[data-mirilook-theme="light"] [class*="bg-[#3a2d17]"],
+html[data-mirilook-theme="light"] [class*="bg-[#d9367e]"] {
+  background-image: linear-gradient(135deg, #fb5c8d, #ea4a7c) !important;
+  background-color: #fb5c8d !important;
+  color: #fff !important;
+}
+
+/* 골드 반투명 틴트(bg-[#f3d28a]/14 등) → 핑크 틴트 (위 그라디언트 덮어씀) */
+html[data-mirilook-theme="light"] [class*="bg-[#f3d28a]/"],
+html[data-mirilook-theme="light"] [class*="bg-[#c9a96a]/"] {
+  background-image: none !important;
+  background-color: rgba(251, 92, 141, 0.12) !important;
+  color: inherit !important;
+}
+
+/* 젠더 카드 등 비선택 어두운 골드/마룬 서피스 → 라이트 뉴트럴 */
+html[data-mirilook-theme="light"] [class*="bg-[#3a2c17"],
+html[data-mirilook-theme="light"] [class*="bg-[#4a1830"],
+html[data-mirilook-theme="light"] [class*="bg-[#5b1d39"],
+html[data-mirilook-theme="light"] [class*="bg-[#4a381f"] {
+  background-color: var(--ml-sunken);
+}
+
+/* ---- Text: headings (밝은 크림 -> ink) ---- */
 html[data-mirilook-theme="light"] [class*="text-[#fffaf1"],
 html[data-mirilook-theme="light"] [class*="text-[#f8f1e5"],
 html[data-mirilook-theme="light"] [class*="text-[#fff4d8"],
 html[data-mirilook-theme="light"] [class*="text-[#fff4d7"],
+html[data-mirilook-theme="light"] [class*="text-[#fff1f7"],
 html[data-mirilook-theme="light"] [class*="text-[#f1dfbd"] {
   color: var(--ml-ink) !important;
 }
@@ -273,21 +307,48 @@ html[data-mirilook-theme="light"] [class*="text-[#d8c8ad"] {
 /* ---- Text: muted / secondary ---- */
 html[data-mirilook-theme="light"] [class*="text-[#b8aa95"],
 html[data-mirilook-theme="light"] [class*="text-[#a99b87"],
+html[data-mirilook-theme="light"] [class*="text-[#9d917f"],
 html[data-mirilook-theme="light"] [class*="text-[#8f826f"],
 html[data-mirilook-theme="light"] [class*="text-[#6f6658"],
 html[data-mirilook-theme="light"] [class*="text-[#6f665c"] {
   color: var(--ml-muted) !important;
 }
 
-/* ---- Text: gold accent ---- */
+/* ---- Text: 골드 액센트 → 핑크 ---- */
 html[data-mirilook-theme="light"] [class*="text-[#f3d28a"],
 html[data-mirilook-theme="light"] [class*="text-[#f8d98f"],
 html[data-mirilook-theme="light"] [class*="text-[#ffdf98"],
+html[data-mirilook-theme="light"] [class*="text-[#ffe6eb"],
 html[data-mirilook-theme="light"] [class*="text-[#c9a96a"] {
   color: var(--ml-gold) !important;
 }
 
-/* ---- Text: semantic info / success / danger (darken for light panels) ---- */
+/* ★ 컬러차트: 스와치 라벨은 (검정 오버레이 위) 흰색 유지 — 리맵 예외 */
+html[data-mirilook-theme="light"] .mirilook-hair-chart [class*="text-[#fffaf1"] {
+  color: #fffaf1 !important;
+}
+
+/* ★ 이미지 라이트박스(상담/코디 프리뷰 팝업)는 항상 어두운 배경 → 글자/표면 원본 유지.
+   (라이트 테마 리맵이 흰 글자를 어둡게 바꿔 어두운 백드롭에 묻히던 문제 #4 해결) */
+html[data-mirilook-theme="light"] .mirilook-lightbox [class*="text-[#fffaf1"] {
+  color: #fffaf1 !important;
+}
+html[data-mirilook-theme="light"] .mirilook-lightbox [class*="text-[#b8aa95"] {
+  color: #cfc3b2 !important;
+}
+html[data-mirilook-theme="light"] .mirilook-lightbox [class*="text-[#8f826f"] {
+  color: #a99b87 !important;
+}
+html[data-mirilook-theme="light"] .mirilook-lightbox [class*="text-[#e7dccb"] {
+  color: #e7dccb !important;
+}
+html[data-mirilook-theme="light"] .mirilook-lightbox [class*="bg-[#171511"],
+html[data-mirilook-theme="light"] .mirilook-lightbox [class*="bg-[#0f0e0c"],
+html[data-mirilook-theme="light"] .mirilook-lightbox [class*="bg-[#11100e"] {
+  background-color: #171511 !important;
+}
+
+/* ---- Text: 시맨틱(info/success/danger) 라이트 패널용 진하게 ---- */
 html[data-mirilook-theme="light"] [class*="text-[#9cc8ff"],
 html[data-mirilook-theme="light"] [class*="text-[#dcecff"],
 html[data-mirilook-theme="light"] [class*="text-[#bcd5ef"],
@@ -307,18 +368,23 @@ html[data-mirilook-theme="light"] [class*="text-[#7fa58c"] {
 }
 
 html[data-mirilook-theme="light"] [class*="text-[#ffb8aa"],
-html[data-mirilook-theme="light"] [class*="text-[#ffe6eb"],
 html[data-mirilook-theme="light"] [class*="text-[#ffd5dd"],
 html[data-mirilook-theme="light"] [class*="text-[#ffb3a6"],
 html[data-mirilook-theme="light"] [class*="text-[#ff8fa8"],
 html[data-mirilook-theme="light"] [class*="text-[#ffb8c8"],
+html[data-mirilook-theme="light"] [class*="text-[#f3b4b4"],
 html[data-mirilook-theme="light"] [class*="text-[#f06f91"] {
   color: var(--ml-danger-ink) !important;
 }
 
 /* ---- Borders ---- */
 html[data-mirilook-theme="light"] [class*="border-[#f3d28a"],
-html[data-mirilook-theme="light"] [class*="border-[#c9a96a"] {
+html[data-mirilook-theme="light"] [class*="border-[#c9a96a"],
+html[data-mirilook-theme="light"] [class*="border-[#e8c879"],
+html[data-mirilook-theme="light"] [class*="border-[#f8dfa0"],
+html[data-mirilook-theme="light"] [class*="border-[#d95b8d"],
+html[data-mirilook-theme="light"] [class*="border-[#d9367e"],
+html[data-mirilook-theme="light"] [class*="border-[#ff9ec8"] {
   border-color: var(--ml-gold-border) !important;
 }
 
@@ -341,16 +407,21 @@ html[data-mirilook-theme="light"] [class*="border-[#7fcf9b"] {
 }
 
 html[data-mirilook-theme="light"] [class*="border-[#ffad9d"],
+html[data-mirilook-theme="light"] [class*="border-[#e88f8f"],
 html[data-mirilook-theme="light"] [class*="border-[#f48aa5"] {
   border-color: var(--ml-danger-border) !important;
 }
 
-/* ---- Shadows: warm and softer on paper ---- */
+html[data-mirilook-theme="light"] [class*="outline-[#f3d28a"] {
+  outline-color: #fb5c8d !important;
+}
+
+/* ---- Shadows: 종이 위 부드럽게 ---- */
 html[data-mirilook-theme="light"] [class*="shadow-black"] {
   --tw-shadow-color: rgba(96, 74, 44, 0.16) !important;
 }
 
-/* ---- Form controls keep ink text ---- */
+/* ---- Form controls ink 텍스트 ---- */
 html[data-mirilook-theme="light"] input,
 html[data-mirilook-theme="light"] textarea,
 html[data-mirilook-theme="light"] select {
@@ -359,35 +430,68 @@ html[data-mirilook-theme="light"] select {
 
 html[data-mirilook-theme="light"] input::placeholder,
 html[data-mirilook-theme="light"] textarea::placeholder {
-  color: rgba(110, 100, 80, 0.7);
+  color: rgba(95, 107, 122, 0.7);
 }
 
+/* =========================================================================
+   DARK THEME (원본 다크 표면 유지 + 골드 액센트 → 핑크)
+   ========================================================================= */
+html[data-mirilook-theme="dark"] [class*="bg-[#f3d28a]"],
+html[data-mirilook-theme="dark"] [class*="bg-[#ffdf98]"],
+html[data-mirilook-theme="dark"] [class*="bg-[#c9a96a]"],
+html[data-mirilook-theme="dark"] [class*="bg-[#3a2d17]"] {
+  background-image: linear-gradient(135deg, #fb5c8d, #ea4a7c) !important;
+  background-color: #fb5c8d !important;
+  color: #fff !important;
+}
+
+html[data-mirilook-theme="dark"] [class*="bg-[#f3d28a]/"],
+html[data-mirilook-theme="dark"] [class*="bg-[#c9a96a]/"] {
+  background-image: none !important;
+  background-color: rgba(251, 92, 141, 0.16) !important;
+  color: inherit !important;
+}
+
+html[data-mirilook-theme="dark"] [class*="bg-[#d9367e]"] {
+  background-image: linear-gradient(135deg, #fb5c8d, #ea4a7c) !important;
+}
+
+html[data-mirilook-theme="dark"] [class*="text-[#f3d28a"],
+html[data-mirilook-theme="dark"] [class*="text-[#f8d98f"],
+html[data-mirilook-theme="dark"] [class*="text-[#ffdf98"],
+html[data-mirilook-theme="dark"] [class*="text-[#c9a96a"] {
+  color: #ff8fb4 !important;
+}
+
+html[data-mirilook-theme="dark"] [class*="border-[#f3d28a"],
+html[data-mirilook-theme="dark"] [class*="border-[#c9a96a"],
+html[data-mirilook-theme="dark"] [class*="border-[#e8c879"] {
+  border-color: #ea4a7c !important;
+}
+
+html[data-mirilook-theme="dark"] [class*="outline-[#f3d28a"] {
+  outline-color: #fb5c8d !important;
+}
+
+/* =========================================================================
+   NEON CTA (핑크) — 업로드/추천/상담/코디 버튼 공통. 라이트·다크 동일.
+   ========================================================================= */
 .mirilook-neon-upload-cta {
-  border: 1px solid rgba(255, 243, 190, 0.96);
+  border: 1px solid rgba(255, 200, 221, 0.96);
   box-shadow:
-    0 0 0 1px rgba(243, 210, 138, 0.5),
-    0 0 18px rgba(243, 210, 138, 0.75),
-    0 0 34px rgba(255, 208, 75, 0.38);
+    0 0 0 1px rgba(251, 92, 141, 0.5),
+    0 0 14px rgba(251, 92, 141, 0.66),
+    0 0 26px rgba(234, 74, 124, 0.4);
   animation: mirilook-neon-upload-pulse 1.15s ease-in-out infinite;
 }
 
 .mirilook-neon-recommend-cta {
-  border: 1px solid rgba(255, 243, 190, 0.98);
+  border: 1px solid rgba(255, 200, 221, 0.98);
   box-shadow:
-    0 0 0 2px rgba(243, 210, 138, 0.48),
-    0 0 24px rgba(243, 210, 138, 0.86),
-    0 0 52px rgba(255, 208, 75, 0.48);
+    0 0 0 2px rgba(251, 92, 141, 0.42),
+    0 0 18px rgba(251, 92, 141, 0.78),
+    0 0 34px rgba(234, 74, 124, 0.42);
   animation: mirilook-neon-recommend-pulse 1.05s ease-in-out infinite;
-}
-
-html[data-mirilook-theme="light"] .mirilook-neon-upload-cta,
-html[data-mirilook-theme="light"] .mirilook-neon-recommend-cta {
-  color: #171511 !important;
-  border-color: rgba(130, 83, 11, 0.55) !important;
-  box-shadow:
-    0 0 0 1px rgba(172, 111, 20, 0.2),
-    0 0 18px rgba(205, 139, 35, 0.38),
-    0 0 34px rgba(243, 210, 138, 0.34);
 }
 
 @keyframes mirilook-neon-upload-pulse {
@@ -398,12 +502,12 @@ html[data-mirilook-theme="light"] .mirilook-neon-recommend-cta {
   }
 
   50% {
-    filter: brightness(1.26);
+    filter: brightness(1.18);
     transform: translateY(-1px);
     box-shadow:
-      0 0 0 2px rgba(255, 244, 206, 0.72),
-      0 0 24px rgba(243, 210, 138, 0.95),
-      0 0 44px rgba(255, 208, 75, 0.58);
+      0 0 0 2px rgba(255, 200, 221, 0.72),
+      0 0 20px rgba(251, 92, 141, 0.92),
+      0 0 36px rgba(234, 74, 124, 0.55);
   }
 }
 
@@ -415,12 +519,12 @@ html[data-mirilook-theme="light"] .mirilook-neon-recommend-cta {
   }
 
   50% {
-    filter: brightness(1.24);
-    transform: translateY(-1px) scale(1.025);
+    filter: brightness(1.16);
+    transform: translateY(-1px) scale(1.02);
     box-shadow:
-      0 0 0 3px rgba(255, 244, 206, 0.7),
-      0 0 30px rgba(243, 210, 138, 1),
-      0 0 64px rgba(255, 208, 75, 0.62);
+      0 0 0 3px rgba(255, 200, 221, 0.7),
+      0 0 26px rgba(251, 92, 141, 0.98),
+      0 0 46px rgba(234, 74, 124, 0.6);
   }
 }
 
@@ -429,4 +533,261 @@ html[data-mirilook-theme="light"] .mirilook-neon-recommend-cta {
   .mirilook-neon-recommend-cta {
     animation: none;
   }
+}
+
+/* =========================================================================
+   홈 하단 소개/FAQ 섹션(.ml-about) — 다크 테마 대응
+   ========================================================================= */
+html[data-mirilook-theme="dark"] .ml-about {
+  background: #0f0e13 !important;
+  /* 섹션 자체에 text-[#191F28]이 있어 자손 셀렉터로는 안 잡힘 → 직접 지정. */
+  color: #f4f5f7 !important;
+}
+html[data-mirilook-theme="dark"] .ml-about [class*="text-[#191F28"],
+html[data-mirilook-theme="dark"] .ml-about h2,
+html[data-mirilook-theme="dark"] .ml-about h3:not([class*="text-[#EA4A7C"]) {
+  color: #f4f5f7 !important;
+}
+html[data-mirilook-theme="dark"] .ml-about [class*="text-[#4E5968"] {
+  color: #b9b7c2 !important;
+}
+html[data-mirilook-theme="dark"] .ml-about [class*="text-[#8B95A1"] {
+  color: #8a8894 !important;
+}
+html[data-mirilook-theme="dark"] .ml-about [class*="text-[#EA4A7C"] {
+  color: #ff8fb4 !important;
+}
+html[data-mirilook-theme="dark"] .ml-about [class*="border-[#EAEDF0"] {
+  border-color: #262330 !important;
+}
+html[data-mirilook-theme="dark"] .ml-about [class*="divide-[#EAEDF0"] > * {
+  border-color: #262330 !important;
+}
+
+/* =========================================================================
+   법적 고지(회사·약관·개인정보·환불) 좌측 메뉴/본문 카드 — 라이트/다크 표면.
+   (기존 bg-black/30·35는 리틴트가 못 잡아 라이트에서 회색으로 남던 문제 수정)
+   ========================================================================= */
+.ml-legal-card {
+  background: #ffffff;
+  border: 1px solid #eef1f4;
+}
+.ml-legal-card.ml-legal-article {
+  box-shadow: 0 14px 38px -22px rgba(17, 24, 39, 0.18);
+}
+html[data-mirilook-theme="dark"] .ml-legal-card {
+  background: #17141c;
+  border-color: #262330;
+}
+html[data-mirilook-theme="dark"] .ml-legal-card.ml-legal-article {
+  box-shadow: 0 24px 64px -32px rgba(0, 0, 0, 0.7);
+}
+.ml-legal-link:hover {
+  background: #fff0f5;
+  color: #ea4a7c !important;
+}
+html[data-mirilook-theme="dark"] .ml-legal-link:hover {
+  background: rgba(251, 92, 141, 0.12);
+  color: #ff8fb4 !important;
+}
+
+/* =========================================================================
+   핑크 CTA(구 골드 bg) 버튼 글자 항상 흰색 — disabled 포함.
+   (disabled:text-[#..] 리맵/특정도보다 뒤·높게 배치해 확실히 우선)
+   ========================================================================= */
+html[data-mirilook-theme="light"] [class*="bg-[#f3d28a]"]:not([class*="bg-[#f3d28a]/"]),
+html[data-mirilook-theme="dark"] [class*="bg-[#f3d28a]"]:not([class*="bg-[#f3d28a]/"]),
+html[data-mirilook-theme="light"] [class*="bg-[#ffdf98]"]:not([class*="bg-[#ffdf98]/"]),
+html[data-mirilook-theme="dark"] [class*="bg-[#ffdf98]"]:not([class*="bg-[#ffdf98]/"]),
+html[data-mirilook-theme="light"] [class*="bg-[#d9367e]"],
+html[data-mirilook-theme="dark"] [class*="bg-[#d9367e]"] {
+  color: #fff !important;
+}
+
+/* =========================================================================
+   홈 첫 화면 — 서버 렌더 본문 + CSS 변수 테마
+   ========================================================================= */
+.ml-home {
+  --mlh-accent: #fb5c8d;
+  --mlh-accent-strong: #ea4a7c;
+  --mlh-page-bg: #0f0e13;
+  --mlh-header-bg: rgba(15, 14, 19, 0.86);
+  --mlh-hairline: #221f2b;
+  --mlh-ink: #f4f5f7;
+  --mlh-sub: #b9b7c2;
+  --mlh-faint: #8a8894;
+  --mlh-card-bg: #1a1720;
+  --mlh-field-bg: #241f2b;
+  --mlh-hero-wash: radial-gradient(1200px 480px at 80% -10%, rgba(251, 92, 141, 0.2), transparent 60%),
+    linear-gradient(180deg, #161019, #0f0e13 72%);
+  --mlh-badge-bg: rgba(251, 92, 141, 0.18);
+  --mlh-badge-ink: #ff9ec4;
+  --mlh-card-border: rgba(251, 92, 141, 0.38);
+  --mlh-card-shadow: 0 0 0 1px rgba(251, 92, 141, 0.18), 0 30px 80px -26px rgba(251, 92, 141, 0.62),
+    0 0 72px -10px rgba(251, 92, 141, 0.48);
+  --mlh-good-bg: rgba(0, 169, 104, 0.16);
+  --mlh-good-ink: #4fd39a;
+  --mlh-bottom-bg: var(--mlh-card-bg);
+  --mlh-bottom-border: 1px solid rgba(251, 92, 141, 0.28);
+  --mlh-bottom-shadow: 0 30px 90px -36px rgba(251, 92, 141, 0.55);
+  --mlh-bottom-ink: var(--mlh-ink);
+  --mlh-bottom-sub: var(--mlh-sub);
+  --mlh-secondary-bg: linear-gradient(135deg, var(--mlh-accent), var(--mlh-accent-strong));
+  --mlh-secondary-ink: #ffffff;
+  background: var(--mlh-page-bg);
+  color: var(--mlh-ink);
+}
+
+html[data-mirilook-theme="light"] .ml-home {
+  --mlh-page-bg: #ffffff;
+  --mlh-header-bg: rgba(255, 255, 255, 0.85);
+  --mlh-hairline: #eef1f4;
+  --mlh-ink: #191f28;
+  --mlh-sub: #4e5968;
+  --mlh-faint: #8b95a1;
+  --mlh-card-bg: #ffffff;
+  --mlh-field-bg: #f2f4f6;
+  --mlh-hero-wash: radial-gradient(1200px 480px at 80% -10%, #ffe7ef, transparent 60%),
+    linear-gradient(180deg, #fff5f8, #ffffff 70%);
+  --mlh-badge-bg: #ffe4ee;
+  --mlh-badge-ink: var(--mlh-accent-strong);
+  --mlh-card-border: rgba(251, 92, 141, 0.3);
+  --mlh-card-shadow: 0 24px 60px -22px rgba(251, 92, 141, 0.5), 0 0 52px -14px rgba(251, 92, 141, 0.34);
+  --mlh-good-bg: #eafbf2;
+  --mlh-good-ink: #00a968;
+  --mlh-bottom-bg: linear-gradient(135deg, var(--mlh-accent), var(--mlh-accent-strong));
+  --mlh-bottom-border: none;
+  --mlh-bottom-shadow: none;
+  --mlh-bottom-ink: #ffffff;
+  --mlh-bottom-sub: rgba(255, 255, 255, 0.85);
+  --mlh-secondary-bg: #ffffff;
+  --mlh-secondary-ink: var(--mlh-accent-strong);
+}
+
+.ml-home-header {
+  background: var(--mlh-header-bg);
+  border-bottom: 1px solid var(--mlh-hairline);
+}
+
+.ml-home-hero {
+  background: var(--mlh-hero-wash);
+}
+
+.ml-home-badge {
+  background: var(--mlh-badge-bg);
+  color: var(--mlh-badge-ink);
+}
+
+.ml-home-accent {
+  color: var(--mlh-accent);
+}
+
+.ml-home-sub {
+  color: var(--mlh-sub);
+}
+
+.ml-home-faint {
+  color: var(--mlh-faint);
+}
+
+.ml-home-card {
+  background: var(--mlh-card-bg);
+  border: 1px solid var(--mlh-card-border);
+  box-shadow: var(--mlh-card-shadow);
+}
+
+.ml-home-field,
+.ml-home-chip,
+.ml-home-meter {
+  background: var(--mlh-field-bg);
+}
+
+.ml-home-chip {
+  color: var(--mlh-sub);
+}
+
+.ml-home-good-chip {
+  background: var(--mlh-good-bg);
+  color: var(--mlh-good-ink);
+}
+
+.ml-home-meter-fill,
+.ml-home-primary-button {
+  background: linear-gradient(135deg, var(--mlh-accent), var(--mlh-accent-strong));
+}
+
+.ml-home-card-footer {
+  border-top: 1px solid var(--mlh-hairline);
+}
+
+.ml-home-stat-section {
+  border-top: 1px solid var(--mlh-hairline);
+  border-bottom: 1px solid var(--mlh-hairline);
+}
+
+.ml-home-stat-split {
+  border-right: 1px solid var(--mlh-hairline);
+}
+
+.ml-home-primary-button,
+.ml-home-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.ml-home-primary-button {
+  min-height: 3.5rem;
+  border-radius: 999px;
+  padding: 0.875rem 1.75rem;
+  color: #ffffff;
+  font-size: 1rem;
+  box-shadow: 0 0 0 1px rgba(251, 92, 141, 0.4), 0 10px 30px -6px rgba(251, 92, 141, 0.8),
+    0 0 48px -4px rgba(251, 92, 141, 0.62);
+}
+
+html[data-mirilook-theme="light"] .ml-home-primary-button {
+  box-shadow: 0 12px 28px -8px rgba(251, 92, 141, 0.6), 0 0 34px -6px rgba(251, 92, 141, 0.42);
+}
+
+.ml-home-secondary-button {
+  min-height: 3.5rem;
+  margin-top: 1.75rem;
+  border-radius: 999px;
+  padding: 0 2rem;
+  background: var(--mlh-secondary-bg);
+  color: var(--mlh-secondary-ink);
+  font-size: 1.0625rem;
+  box-shadow: 0 16px 34px -14px rgba(251, 92, 141, 0.65);
+}
+
+html[data-mirilook-theme="light"] .ml-home-secondary-button {
+  box-shadow: none;
+}
+
+.ml-home-primary-button:active,
+.ml-home-secondary-button:active {
+  transform: scale(0.98);
+}
+
+.ml-home-primary-button:disabled,
+.ml-home-secondary-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.ml-home-bottom-cta {
+  background: var(--mlh-bottom-bg);
+  border: var(--mlh-bottom-border);
+  box-shadow: var(--mlh-bottom-shadow);
+  color: var(--mlh-bottom-ink);
+}
+
+.ml-home-bottom-cta p + p {
+  color: var(--mlh-bottom-sub);
 }

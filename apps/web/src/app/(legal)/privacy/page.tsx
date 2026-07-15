@@ -12,7 +12,7 @@ export default function PrivacyPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#f3d28a]">
           Privacy Policy
         </p>
-        <h1 className="mt-3 text-3xl font-semibold text-[#fffaf1]">
+        <h1 className="mt-3 text-[26px] font-extrabold tracking-[-0.02em] text-[#fffaf1] sm:text-[32px]">
           개인정보처리방침
         </h1>
         <p className="mt-3">시행일: 2026. 06. 26.</p>
@@ -27,7 +27,7 @@ export default function PrivacyPage() {
         <ul className="list-disc space-y-2 pl-5">
           <li>계정 정보: 이메일, 닉네임, 소셜 로그인 식별값, 프로필 사진</li>
           <li>서비스 입력 정보: 좌측면·정면·우측면 얼굴 사진, 선호 헤어컷, 컬러, 메모, 성별 선택, 생성 요청 기록</li>
-          <li>생성 결과 정보: AI 추천 이미지, 상담용 이미지, 코디·메이크업 결과, 저장·공유·다운로드 이력</li>
+          <li>생성 결과 정보: AI 추천 이미지, 상담용 이미지, 코디 결과, 저장·공유·다운로드 이력</li>
           <li>커뮤니티 정보: 게시글, 댓글, 투표, 신고, 메시지 수신 설정</li>
           <li>입점·예약 정보: 미용실·디자이너 정보, 예약 요청, 리뷰, 위치 조회 이력</li>
           <li>결제 정보: H머니 구매·사용·환불 내역, 결제 승인번호, 결제수단 일부 식별정보</li>
@@ -38,7 +38,7 @@ export default function PrivacyPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-semibold text-[#fffaf1]">2. 개인정보의 이용 목적</h2>
         <ul className="list-disc space-y-2 pl-5">
-          <li>AI 헤어스타일, 코디, 메이크업 추천과 이미지 생성</li>
+          <li>AI 헤어스타일, 코디 추천과 이미지 생성</li>
           <li>회원별 히스토리 저장, 결과 공유, PDF·이미지 내보내기</li>
           <li>H머니 결제, 차감, 환불, 결제 오류 처리</li>
           <li>미용실·디자이너 예약, 리뷰, 위치 기반 탐색 제공</li>
@@ -93,8 +93,8 @@ export default function PrivacyPage() {
         <p>
           서비스 운영을 위해 회사는 클라우드, 인증, 데이터베이스, 이메일,
           결제, 자동화, AI 이미지 생성 사업자에게 업무를 위탁할 수 있습니다.
-          현재 또는 예정된 주요 처리 수탁자는 Supabase, Vercel, OpenAI, Google
-          Gemini, Resend, Trigger.dev, PortOne 및 결제대행사입니다. 일부
+          현재 또는 예정된 주요 처리 수탁자는 Supabase, Vercel, OpenAI,
+          Resend, Trigger.dev, 그리고 결제대행사인 KG이니시스(주식회사 케이지이니시스)입니다. 일부
           사업자는 국외에 서버를 둘 수 있으며, 회사는 실제 도입 시 서비스 내
           고지 또는 본 방침 개정을 통해 세부 항목을 안내합니다.
         </p>
@@ -105,7 +105,7 @@ export default function PrivacyPage() {
         <p>
           회원은 본인의 개인정보 열람, 정정, 삭제, 처리정지, 동의 철회를
           요청할 수 있습니다. 서비스 내 마이페이지에서 일부 정보를 직접 수정할
-          수 있으며, 직접 처리가 어려운 요청은 hello@mirilook.com으로 접수할 수
+          수 있으며, 직접 처리가 어려운 요청은 jipsa.admin@gmail.com으로 접수할 수
           있습니다.
         </p>
       </section>
@@ -180,7 +180,7 @@ export default function PrivacyPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-semibold text-[#fffaf1]">11. 문의처</h2>
         <p>
-          개인정보 관련 문의, 권리 행사, 침해 신고는 hello@mirilook.com으로
+          개인정보 관련 문의, 권리 행사, 침해 신고는 jipsa.admin@gmail.com으로
           접수할 수 있습니다. 정식 개인정보 보호책임자와 사업자 정보는 법인
           설립 및 정식 오픈 시 업데이트합니다.
         </p>

@@ -14,7 +14,7 @@ export default function TermsPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#f3d28a]">
           Terms of Service
         </p>
-        <h1 className="mt-3 text-3xl font-semibold text-[#fffaf1]">이용약관</h1>
+        <h1 className="mt-3 text-[26px] font-extrabold tracking-[-0.02em] text-[#fffaf1] sm:text-[32px]">이용약관</h1>
         <p className="mt-3">시행일: 2026. 06. 26.</p>
       </header>
 
@@ -22,7 +22,7 @@ export default function TermsPage() {
         <h2 className="text-xl font-semibold text-[#fffaf1]">제1조 목적</h2>
         <p>
           본 약관은 미리룩(Miri Look, 이하 “회사”)이 제공하는 AI 기반
-          헤어스타일, 코디, 메이크업 추천 서비스 및 관련 커뮤니티, 투표,
+          헤어스타일, 코디 추천 서비스 및 관련 커뮤니티, 투표,
           입점, 예약, 결제 기능의 이용 조건과 회사와 회원의 권리·의무를
           정하는 것을 목적으로 합니다.
         </p>
@@ -85,17 +85,23 @@ export default function TermsPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-semibold text-[#fffaf1]">제6조 H머니와 유료 서비스</h2>
         <p>
-          Hair money 또는 H머니는 회원이 원화로 구매해 미리룩의 헤어, 코디,
-          메이크업 추천 및 AI 이미지 생성 등 유료 기능에 사용할 수 있는 서비스
+          Hair money 또는 H머니는 회원이 원화로 구매해 미리룩의 헤어, 코디
+          추천 및 AI 이미지 생성 등 유료 기능에 사용할 수 있는 서비스
           내 결제 단위입니다. H머니는 현금, 예금, 전자화폐가 아니며, 서비스
           외부에서 양도, 판매, 교환하거나 현금처럼 사용할 수 없습니다.
         </p>
         <p>
           유료 기능을 실행하면 사전에 고지된 H머니가 차감됩니다. 추천 또는
           이미지 생성이 시작된 이후에는 디지털 콘텐츠 제공의 특성상 단순 변심에
-          따른 취소가 제한될 수 있습니다. 환불 기준은{" "}
+          따른 취소가 제한될 수 있습니다.
+        </p>
+        <p>
+          충전한 유상 H머니의 사용기간(유효기간)은 충전일로부터 1년입니다.
+          구매 후 7일 이내 사용하지 않은 유상 H머니는 청약철회(취소)하여 환불받을
+          수 있으며, 환불은 최초 결제하신 결제수단으로만 이루어집니다. 취소·환불·
+          교환의 구체적 기준은{" "}
           <Link className="font-semibold text-[#f3d28a] underline" href="/refund">
-            환불정책
+            취소·환불·교환 정책
           </Link>
           을 따릅니다.
         </p>
@@ -162,7 +168,7 @@ export default function TermsPage() {
         <h2 className="text-xl font-semibold text-[#fffaf1]">제12조 문의</h2>
         <p>
           서비스 이용, 결제, 환불, 개인정보, 신고 관련 문의는
-          hello@mirilook.com으로 접수할 수 있습니다. 회사 정보와 고객센터
+          jipsa.admin@gmail.com으로 접수할 수 있습니다. 회사 정보와 고객센터
           운영시간은 정식 사업자 등록 및 결제 오픈 시 별도 고지합니다.
         </p>
       </section>

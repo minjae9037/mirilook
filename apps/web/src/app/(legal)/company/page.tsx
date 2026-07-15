@@ -23,7 +23,7 @@ export default function CompanyPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#f3d28a]">
           Company
         </p>
-        <h1 className="mt-3 text-3xl font-semibold text-[#fffaf1]">회사소개</h1>
+        <h1 className="mt-3 text-[26px] font-extrabold tracking-[-0.02em] text-[#fffaf1] sm:text-[32px]">회사소개</h1>
         <p className="mt-3 max-w-3xl">
           미리룩은 엠제이인사이트 주식회사가 운영하는 AI 헤어스타일 추천
           서비스입니다.
