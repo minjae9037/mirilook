@@ -14,7 +14,7 @@ export function MirilookHomeExperience() {
   return (
     <main className="ml-home min-h-screen w-full">
       <header className="ml-home-header sticky top-0 z-20 backdrop-blur">
-        <div className="mx-auto w-full max-w-6xl px-5 py-5 sm:px-6">
+        <div className="mx-auto w-full max-w-7xl px-5 py-5 sm:px-6">
           <MirilookMainNav />
         </div>
       </header>

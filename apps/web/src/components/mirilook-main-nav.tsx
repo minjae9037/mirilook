@@ -55,13 +55,14 @@ export function MirilookMainNav() {
     "inline-flex shrink-0 items-center gap-2 rounded-md border border-[#c9a96a]/45 px-3 py-2 text-sm font-semibold text-[#f3d28a] transition hover:bg-[#f3d28a]/10";
 
   return (
-    <header className="flex flex-row items-center justify-between gap-3">
-      {/* 좌측 상단 브랜드 — 전 페이지 공통 컴포넌트로 크기/위치 고정. */}
-      <MirilookBrandLogo />
+    <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      {/* 좌측: 브랜드 + 주요 링크(데스크톱). 링크를 미리룩 제목 바로 오른쪽에 둔다. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* 좌측 상단 브랜드 — 전 페이지 공통 컴포넌트로 크기/위치 고정. */}
+        <MirilookBrandLogo />
 
-      <div className="flex items-center gap-2">
         {/* 주요 목적지 링크는 모바일에서 하단 내비게이션으로 이동 — 데스크톱에서만 상단 노출 */}
-        <div className="hidden flex-wrap items-center gap-2 sm:flex lg:flex-nowrap lg:justify-end">
+        <div className="hidden flex-wrap items-center gap-2 sm:flex">
           <Link className={linkClass} href="/salons">
             미용실
           </Link>
@@ -105,6 +106,10 @@ export function MirilookMainNav() {
             스토어
           </Link>
         </div>
+      </div>
+
+      {/* 우측: 테마/언어/관리자 유틸 */}
+      <div className="flex items-center gap-2">
         <MirilookThemeToggle />
         <MirilookLanguageSwitcher />
         <MirilookAdminNavButton />
