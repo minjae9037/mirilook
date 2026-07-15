@@ -4795,7 +4795,7 @@ export function MirilookStudio() {
               {isSavingGrid ? "저장 중" : "3x3 한 장 저장"}
             </button>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
             {recommendations.map((style) => (
               <StyleCard
                 active={style.id === selectedStyleId}
@@ -8023,14 +8023,14 @@ function StyleCard({
             {style.error ? (
               <span className="text-xl font-bold text-[#fffaf1]">생성 실패</span>
             ) : (
-              <span className="text-4xl font-black tabular-nums leading-none text-[#fffaf1]">
+              <span className="text-2xl font-black tabular-nums leading-none text-[#fffaf1] sm:text-4xl">
                 {progress ?? 0}%
               </span>
             )}
             {progress !== undefined && !style.error ? (
               <GenerationProgressBar progress={progress} />
             ) : null}
-            <span className="text-sm font-semibold text-[#b8aa95]">
+            <span className="text-xs font-semibold text-[#b8aa95] sm:text-sm">
               {style.error ? "자동 재시도 후 확인 필요" : "AI 합성 중"}
             </span>
             {style.error ? (
@@ -8072,14 +8072,20 @@ function StyleCard({
             </button>
           ) : null}
         </div>
-        <div className="absolute bottom-3 left-3 right-3">
-          <p className="text-xl font-semibold text-[#fffaf1]">{style.name}</p>
+        <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
+          <p className="text-sm font-semibold leading-tight text-[#fffaf1] sm:text-lg lg:text-xl">
+            {style.name}
+          </p>
         </div>
       </div>
-      <div className="p-4">
-        <p className="text-sm leading-6 text-[#b8aa95]">{style.reason}</p>
-        <StyleAdviceBlocks maxItems={2} source={style} />
-        <div className="mt-3 flex flex-wrap gap-2">
+      <div className="p-2 sm:p-3 lg:p-4">
+        <p className="text-xs leading-5 text-[#b8aa95] sm:text-sm sm:leading-6">
+          {style.reason}
+        </p>
+        <div className="hidden sm:block">
+          <StyleAdviceBlocks maxItems={2} source={style} />
+        </div>
+        <div className="mt-3 hidden flex-wrap gap-2 sm:flex">
           {style.tags.map((tag) => (
             <span
               className="rounded-md bg-white/7 px-2 py-1 text-xs text-[#d8cbb8]"
