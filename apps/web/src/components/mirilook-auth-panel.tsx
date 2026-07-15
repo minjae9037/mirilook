@@ -380,7 +380,7 @@ export function MirilookAuthPanel() {
                     ? {
                         background: "linear-gradient(135deg, #fb5c8d, #ea4a7c)",
                         color: "#ffffff",
-                        boxShadow: "0 8px 18px rgba(234, 74, 124, 0.32)",
+                        boxShadow: "0 4px 12px rgba(234, 74, 124, 0.22)",
                       }
                     : { color: "var(--ml-muted, #5f6b7a)" }
                 }
@@ -397,8 +397,8 @@ export function MirilookAuthPanel() {
         <span
           className="flex size-16 items-center justify-center rounded-2xl text-white"
           style={{
-            background: "linear-gradient(135deg, #fb5c8d, #ea4a7c)",
-            boxShadow: "0 12px 26px rgba(234, 74, 124, 0.32)",
+            background: "linear-gradient(135deg, #fb7ba8, #f46b96)",
+            boxShadow: "0 8px 18px rgba(234, 74, 124, 0.2)",
           }}
         >
           <Sparkles aria-hidden="true" size={30} />
@@ -472,7 +472,7 @@ export function MirilookAuthPanel() {
               className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
               disabled={busyAction === "kakao"}
               onClick={() => void signInWithProvider("kakao")}
-              style={{ background: "#fee500", color: "#191600" }}
+              style={{ background: "#fbe79b", color: "#4a3f1e" }}
               type="button"
             >
               {busyAction === "kakao" ? (
@@ -500,7 +500,7 @@ export function MirilookAuthPanel() {
 
             {naverEnabled ? (
               <button
-                className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl px-4 text-[15px] font-bold text-white transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={busyAction === "naver"}
                 onClick={() => {
                   setBusyAction("naver");
@@ -508,7 +508,7 @@ export function MirilookAuthPanel() {
                   setStatus("네이버 로그인 창으로 이동합니다...");
                   startNaverLogin();
                 }}
-                style={{ background: "#03c75a" }}
+                style={{ background: "#dff3e7", color: "#0a9b4a" }}
                 type="button"
               >
                 {busyAction === "naver" ? (
@@ -594,9 +594,9 @@ export function MirilookAuthPanel() {
             </label>
 
             <button
-              className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-bold text-white transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-bold text-[#191f28] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
               disabled={busyAction === mode}
-              style={{ background: "linear-gradient(135deg, #fb5c8d, #ea4a7c)" }}
+              style={{ background: "#f2f4f6" }}
               type="submit"
             >
               {busyAction === mode ? (
