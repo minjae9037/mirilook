@@ -1,10 +1,10 @@
 "use client";
 
 import { LogIn, LogOut, Store, UserRound } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { MirilookAdminNavButton } from "@/components/mirilook-admin-nav-button";
+import { MirilookBrandLogo } from "@/components/mirilook-brand-logo";
 import { MirilookLanguageSwitcher } from "@/components/mirilook-language-switcher";
 import { MirilookThemeToggle } from "@/components/mirilook-theme-toggle";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -56,29 +56,8 @@ export function MirilookMainNav() {
 
   return (
     <header className="flex flex-row items-center justify-between gap-3">
-      {/* 좌측 상단 브랜드 — 홈(mirilook.com)과 동일: 핑크 아이콘 + "미리룩". */}
-      <Link
-        aria-label="미리룩 홈으로"
-        className="flex w-fit shrink-0 items-center gap-2.5 transition hover:opacity-85"
-        href="/"
-      >
-        <span className="relative flex size-11 shrink-0 overflow-hidden rounded-[14px] border border-[#ffd5e3] bg-[#fff5f8] shadow-sm sm:size-12">
-          <Image
-            alt="미리룩 아이콘"
-            className="scale-[1.22] object-cover"
-            fill
-            priority
-            sizes="48px"
-            src="/brand/mirilook-main-theme-pink-white-bg.png"
-          />
-        </span>
-        <span
-          className="whitespace-nowrap text-[23px] font-extrabold tracking-tight sm:text-[26px]"
-          style={{ color: "#ea4a7c" }}
-        >
-          미리룩
-        </span>
-      </Link>
+      {/* 좌측 상단 브랜드 — 전 페이지 공통 컴포넌트로 크기/위치 고정. */}
+      <MirilookBrandLogo />
 
       <div className="flex items-center gap-2">
         {/* 주요 목적지 링크는 모바일에서 하단 내비게이션으로 이동 — 데스크톱에서만 상단 노출 */}
@@ -93,9 +72,12 @@ export function MirilookMainNav() {
           {isSignedIn ? (
             <>
               <Link
-                className="inline-flex shrink-0 items-center gap-2 rounded-md px-3.5 py-2 text-sm font-bold text-white transition active:scale-95"
+                className="inline-flex shrink-0 items-center gap-2 rounded-md px-3.5 py-2 text-sm font-bold transition active:scale-95"
                 href="/studio"
-                style={{ background: "linear-gradient(135deg, #fb5c8d, #ea4a7c)" }}
+                style={{
+                  background: "linear-gradient(135deg, #fb5c8d, #ea4a7c)",
+                  color: "#ffffff",
+                }}
               >
                 시작하기
               </Link>

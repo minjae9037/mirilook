@@ -14,7 +14,7 @@ export default function LoginPage() {
           "linear-gradient(180deg, #fff5f8 0%, var(--ml-page, #f7f8fa) 42%)",
       }}
     >
-      <div className="mx-auto max-w-6xl px-5 py-4">
+      <div className="mx-auto max-w-6xl px-5 py-5">
         <MirilookMainNav />
       </div>
 

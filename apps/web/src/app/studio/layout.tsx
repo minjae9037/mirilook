@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { AlertTriangle, Moon, Sun } from "lucide-react";
+import { MirilookBrandLogo } from "@/components/mirilook-brand-logo";
 import { MirilookStudio } from "@/components/mirilook-studio";
 import {
   STUDIO_PROGRESS,
@@ -87,31 +87,9 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
   return (
     <main className="min-h-screen w-full" style={{ background: pageBg, color: ink }}>
       <style>{`body > footer{display:none!important}`}</style>
-      <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-5 py-5 sm:px-6">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="미리룩 홈으로">
-            <span
-              className="relative flex size-9 shrink-0 overflow-hidden rounded-[11px] border shadow-sm sm:size-10"
-              style={{
-                background: "#fff5f8",
-                borderColor: dark ? "rgba(255,158,196,0.48)" : "#ffd5e3",
-              }}
-            >
-              <Image
-                alt="미리룩 아이콘"
-                className="scale-[1.22] object-cover"
-                fill
-                sizes="40px"
-                src="/brand/mirilook-main-theme-pink-white-bg.png"
-              />
-            </span>
-            <span
-              className="whitespace-nowrap text-[23px] font-extrabold tracking-tight sm:text-[26px]"
-              style={{ color: dark ? "#ff7eb0" : "#ea4a7c" }}
-            >
-              미리룩
-            </span>
-          </Link>
+          <MirilookBrandLogo />
 
           {/* 진행바 (입력 5단계) */}
           <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1.5 sm:flex">

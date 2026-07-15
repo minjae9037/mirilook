@@ -23,7 +23,7 @@ export default async function CommunityPage() {
 
   return (
     <main className="min-h-screen bg-[#11100e] text-[#f8f1e5]">
-      <div className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-6">
+      <div className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-5">
         <MirilookMainNav />
 
         <MirilookPageHero

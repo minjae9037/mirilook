@@ -10,7 +10,7 @@ export const metadata = {
 export default function MyPage() {
   return (
     <main className="min-h-screen bg-[#11100e] text-[#f8f1e5]">
-      <section className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-6">
+      <section className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-5">
         <MirilookMainNav />
 
         <MirilookPageHero

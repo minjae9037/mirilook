@@ -22,7 +22,7 @@ export default async function SalonsPage() {
 
   return (
     <main className="min-h-screen bg-[#11100e] text-[#f8f1e5]">
-      <div className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-6">
+      <div className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-5">
         <MirilookMainNav />
 
         <div className="rounded-2xl border border-[#f3d28a]/40 bg-[#201c14] px-4 py-3 text-sm leading-6 text-[#f8f1e5]">
