@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { MirilookMainNav } from "@/components/mirilook-main-nav";
+import { MirilookPageHero } from "@/components/mirilook-page-hero";
 import { MirilookSocialCommunity } from "@/components/mirilook-social-community";
 import { loadSocialCommunity } from "@/lib/server/mirilook-social";
 
@@ -23,23 +24,13 @@ export default async function CommunityPage() {
   return (
     <main className="min-h-screen bg-[#11100e] text-[#f8f1e5]">
       <div className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-6">
-        <MirilookMainNav subtitle="Community" />
+        <MirilookMainNav />
 
-        <header className="flex flex-col justify-between gap-4 border-b border-white/10 pb-5 md:flex-row md:items-end">
-          <div>
-            <p className="text-sm font-semibold text-[#f3d28a]">
-              스타일 사진 커뮤니티
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold text-[#fffaf1]">
-              나의 스타일 기록을 올리고, 다른 사람의 취향을 발견합니다.
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#b8aa95]">
-              여러 장의 사진과 글을 올리고, 해시태그로 탐색하고, 회원 ID를 검색하고,
-              마음에 드는 스타일에는 좋아요·싫어요·댓글·공유·DM으로 반응할 수
-              있습니다.
-            </p>
-          </div>
-        </header>
+        <MirilookPageHero
+          eyebrow="스타일 사진 커뮤니티"
+          title="나의 스타일 기록을 올리고, 다른 사람의 취향을 발견합니다."
+          subtitle="여러 장의 사진과 글을 올리고, 해시태그로 탐색하고, 회원 ID를 검색하고, 마음에 드는 스타일에는 좋아요·싫어요·댓글·공유·DM으로 반응할 수 있습니다."
+        />
 
         <MirilookSocialCommunity
           connected={social.connected}

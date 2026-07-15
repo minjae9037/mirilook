@@ -116,11 +116,10 @@ export function MirilookMainNav() {
           )}
 
           <Link
-            className="inline-flex shrink-0 items-center gap-2 rounded-md border border-[#f3d28a]/50 bg-[#f3d28a] px-3 py-2 text-sm font-bold text-black transition hover:bg-[#ffdf98] hover:text-black"
+            className="inline-flex shrink-0 items-center gap-2 rounded-md border border-[#f3d28a]/50 bg-[#f3d28a] px-3 py-2 text-sm font-bold text-white transition hover:bg-[#ffdf98]"
             href="/store"
-            style={{ color: "#000000" }}
           >
-            <Store aria-hidden="true" className="text-black" size={15} />
+            <Store aria-hidden="true" size={15} />
             스토어
           </Link>
         </div>

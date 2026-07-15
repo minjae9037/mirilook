@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MirilookCommunityBoard } from "@/components/mirilook-community-board";
 import { VoteRequestForm } from "@/components/mirilook-growth-forms";
 import { MirilookMainNav } from "@/components/mirilook-main-nav";
+import { MirilookPageHero } from "@/components/mirilook-page-hero";
 import { MirilookNotificationSettings } from "@/components/mirilook-notification-settings";
 import { MirilookPaymentPanel } from "@/components/mirilook-payment-panel";
 import { communityVotePurposes } from "@/lib/mirilook-marketplace";
@@ -29,28 +30,21 @@ export default async function VotesPage() {
   return (
     <main className="min-h-screen bg-[#11100e] text-[#f8f1e5]">
       <div className="mx-auto grid w-full max-w-6xl gap-6 px-5 py-6">
-        <MirilookMainNav subtitle="Style Votes" />
+        <MirilookMainNav />
 
-        <header className="flex flex-col justify-between gap-4 border-b border-white/10 pb-5 md:flex-row md:items-end">
-          <div>
-            <p className="text-sm font-semibold text-[#f3d28a]">
-              익명 스타일 투표
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold text-[#fffaf1]">
-              추천받은 스타일을 익명으로 검증합니다.
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#b8aa95]">
-              남성은 여성에게, 여성은 남성에게 스타일 투표를 요청하고 DM 허용
-              여부를 직접 선택할 수 있는 파일럿 투표 공간입니다.
-            </p>
-          </div>
-          <Link
-            className="inline-flex h-10 items-center justify-center rounded-md border border-white/12 px-3 text-sm font-semibold text-[#e7dccb] transition hover:bg-white/8"
-            href="/salons"
-          >
-            제휴 미용실 보기
-          </Link>
-        </header>
+        <MirilookPageHero
+          eyebrow="익명 스타일 투표"
+          title="추천받은 스타일을 익명으로 검증합니다."
+          subtitle="남성은 여성에게, 여성은 남성에게 스타일 투표를 요청하고 DM 허용 여부를 직접 선택할 수 있는 파일럿 투표 공간입니다."
+          action={
+            <Link
+              className="inline-flex h-11 items-center justify-center rounded-xl border border-white/12 px-4 text-sm font-semibold text-[#e7dccb] transition hover:bg-white/8"
+              href="/salons"
+            >
+              제휴 미용실 보기
+            </Link>
+          }
+        />
 
         <section className="grid gap-4 lg:grid-cols-3">
           {[
@@ -74,7 +68,7 @@ export default async function VotesPage() {
 
             return (
               <article
-                className="rounded-md border border-[#2b281f] bg-[#171511]/92 p-4"
+                className="rounded-2xl border border-[#2b281f] bg-[#171511]/92 p-4"
                 key={item.title}
               >
                 <Icon aria-hidden="true" className="text-[#f3d28a]" size={20} />
@@ -96,7 +90,7 @@ export default async function VotesPage() {
               posts={community.posts}
             />
 
-            <section className="rounded-md border border-[#2b281f] bg-[#171511]/92 p-4">
+            <section className="rounded-2xl border border-[#2b281f] bg-[#171511]/92 p-4">
               <h2 className="text-lg font-semibold text-[#fffaf1]">
                 투표 목적
               </h2>
