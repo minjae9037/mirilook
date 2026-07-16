@@ -220,6 +220,44 @@ Photos you upload are used only to generate hairstyle recommendations and are ha
 
 ---
 
+## 6-A. 로컬 AAB 빌드 (2026-07-17 성공 — Codemagic 불필요)
+
+**요구 JDK는 21이다(17 아님).** Capacitor 8 플러그인이 `languageVersion=21` 툴체인을 요구해 JDK 17로는
+`capacitor-camera:compileReleaseJavaWithJavac` 단계에서 실패한다. (하트스코어는 TWA/Bubblewrap이라 17로 됐던 것 — 혼동 주의.)
+
+```bash
+cd apps/mobile/android
+export JAVA_HOME="/c/Users/minja/scoop/apps/temurin21-jdk/current"   # ← 21
+export ANDROID_HOME="/c/Users/minja/scoop/apps/android-clt/current"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export PATH="$JAVA_HOME/bin:$PATH"
+./gradlew bundleKrRelease --no-daemon
+```
+산출물: `apps/mobile/android/app/build/outputs/bundle/krRelease/app-kr-release.aab` (약 16 MB)
+
+> 웹 코드를 바꿨다면 빌드 전에 `cd apps/mobile && npx cap sync android`. 단, **앱은 mirilook.com을
+> 웹뷰로 로드하므로 웹 변경은 재빌드 없이 반영된다.** 재빌드가 필요한 건 네이티브 설정(플러그인·권한·appId·버전)이 바뀔 때뿐이다.
+
+### 서명 설정 구조
+
+자격증명은 저장소(PUBLIC)에 넣지 않는다. `app/build.gradle`이 아래 순서로 찾는다:
+1. `android/keystore.properties` (로컬, **gitignore됨**)
+2. 환경변수 `MIRILOOK_KEYSTORE_PATH` / `_PASSWORD` / `MIRILOOK_KEY_ALIAS` / `_PASSWORD` (CI용)
+3. 둘 다 없으면 경고 로그 후 **서명 없이** 빌드(Play 업로드 불가)
+
+### 빌드 검증 결과 (2026-07-17)
+
+| 항목 | 결과 |
+|---|---|
+| 서명 지문 | `85:7D:BC:D6:…:31:31:08:C9` — **업로드 키와 일치 확인** (`keytool -printcert -jarfile`) |
+| applicationId | `com.mirilook.app` ✅ |
+| `com.android.vending.BILLING` | ✅ **매니페스트 병합됨** (RevenueCat 경유 — 인앱결제 필수) |
+| `android.permission.INTERNET` | ✅ |
+| `CAMERA` | ❌ 없음 — **정상.** 웹이 `<input type="file">`만 쓰고 Capacitor Camera 플러그인을 호출하지 않는다. 권한이 적을수록 데이터보안 양식·심사가 단순하다 |
+| 서명 블록 | `META-INF/MIRILOOK.RSA` ✅ |
+
+---
+
 ## 7. 최종 런북 (카드사 심사와 **병렬** 실행 — 기다릴 것 없음)
 
 ```

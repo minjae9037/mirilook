@@ -1,5 +1,23 @@
 apply plugin: 'com.android.application'
 
+// 업로드 키 자격증명 — 저장소(PUBLIC)에 절대 넣지 않는다.
+// 우선순위: keystore.properties(로컬, gitignore됨) → 환경변수(CI). 둘 다 없으면 서명 없이 빌드된다.
+def keystorePropsFile = rootProject.file("keystore.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+def resolveSigning = { String key, String envName ->
+    keystoreProps.getProperty(key) ?: System.getenv(envName)
+}
+def keystorePath = resolveSigning('storeFile', 'MIRILOOK_KEYSTORE_PATH')
+def hasSigningConfig = keystorePath != null && file(keystorePath).exists()
+
+if (!hasSigningConfig) {
+    logger.warn("[mirilook] 서명 설정 없음 — release 빌드가 서명되지 않습니다. " +
+        "keystore.properties 또는 MIRILOOK_KEYSTORE_* 환경변수를 확인하세요.")
+}
+
 android {
     namespace = "com.mirilook.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +34,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasSigningConfig) {
+                storeFile file(keystorePath)
+                storePassword resolveSigning('storePassword', 'MIRILOOK_KEYSTORE_PASSWORD')
+                keyAlias resolveSigning('keyAlias', 'MIRILOOK_KEY_ALIAS')
+                keyPassword resolveSigning('keyPassword', 'MIRILOOK_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasSigningConfig) {
+                signingConfig signingConfigs.release
+            }
         }
     }
     // 국가별 빌드 플레이버: applicationId를 국가별로 자동 전환 (kr이 기본)
