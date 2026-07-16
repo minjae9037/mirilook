@@ -39,3 +39,6 @@ apps/web/scripts/diag-*.mjs
 *service-account*.json
 gcloud-*.json
 play-console-*.json
+# 구글이 발급하는 서비스계정 키 파일명은 `<프로젝트ID>-<키ID앞자리>.json` 형식이라
+# 위 패턴에 안 걸린다(예: miri-look-052ef7ca1ac2.json). 프로젝트 ID로 직접 막는다.
+miri-look-*.json
