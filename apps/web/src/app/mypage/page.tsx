@@ -2,6 +2,7 @@ import { MirilookHistoryManager } from "@/components/mirilook-history-manager";
 import { MirilookLogoutButton } from "@/components/mirilook-logout-button";
 import { MirilookMainNav } from "@/components/mirilook-main-nav";
 import { MirilookPageHero } from "@/components/mirilook-page-hero";
+import { MirilookPasswordSettings } from "@/components/mirilook-password-settings";
 import { MirilookProfilePanel } from "@/components/mirilook-profile-panel";
 
 export const metadata = {
@@ -23,6 +24,7 @@ export default function MyPage() {
 
         <div className="grid gap-6 pb-12">
           <MirilookProfilePanel />
+          <MirilookPasswordSettings />
           <MirilookHistoryManager />
         </div>
       </section>

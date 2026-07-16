@@ -35,12 +35,12 @@ export function MirilookHomeExperience() {
               9방향 상담 이미지까지 만들어 미용실 상담에 그대로 써요.
             </p>
 
+            {/* "첫 상담 세트는 무료 · 로그인 없이 바로 체험" 문구 삭제(2026-07-17).
+                둘 다 사실이 아니었다 — 시작 버튼은 미로그인 시 /login으로 보내고,
+                신규 계정 잔액은 0 HM인데 추천 1회에 4 HM이 필요하다. 무료 체험은 제공하지 않는다. */}
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <MirilookHomeStartButton />
             </div>
-            <p className="ml-home-faint mt-4 text-[13px]">
-              첫 상담 세트(9방향)는 무료 · 로그인 없이 바로 체험
-            </p>
           </div>
 
           <div className="ml-home-card mx-auto w-full max-w-[440px] rounded-[26px] p-5">
