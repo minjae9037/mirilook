@@ -783,14 +783,37 @@ async function grantIapCredit({
 
 ### 7.2 Google Cloud 서비스 계정 (RevenueCat ↔ 구글 API 연결용)
 
-1. https://console.cloud.google.com → 프로젝트 선택(없으면 신규 "mirilook-play").
-2. **API 및 서비스 > 라이브러리** → "Google Play Android Developer API" 검색 → **사용 설정**.
+> ⚠️ **2026-07-16 정정 — 이 절의 원래 내용은 요구사항이 크게 누락돼 있었다.**
+> (API 1개만 활성화 / 역할 부여 없음 / 권한 2개로 적혀 있었으나, RevenueCat 공식 문서 기준
+> **API 5개 + IAM 역할 2개 + Play 권한 3개**가 필요하다. 옛 내용대로 하면 연동이 실패한다.)
+> 출처: RevenueCat Docs — Creating Play Service Credentials (2026-07-16 확인).
+
+**전제:** Play Console에 앱(`com.mirilook.app`)이 **이미 만들어져 있어야** 4번의 앱 권한 지정이 가능하다.
+
+1. https://console.cloud.google.com → 프로젝트 선택(없으면 신규 `mirilook-play`).
+2. **API 및 서비스 > 라이브러리**에서 아래 **5개를 모두** 검색 → **사용 설정**:
+   - Google Play Android Developer API (Android Publisher API)
+   - Google Play Developer Reporting API
+   - Cloud Pub/Sub API
+   - Cloud Resource Manager API
+   - Identity and Access Management (IAM) API
 3. **IAM 및 관리자 > 서비스 계정 > 서비스 계정 만들기**:
-   - 이름 `revenuecat-play` → 만들기 → 역할은 부여하지 않고 완료.
-   - 만든 계정 클릭 → **키 탭 > 키 추가 > 새 키 만들기 > JSON** → JSON 파일 다운로드(안전 보관 — 이게 RevenueCat에 올릴 크리덴셜).
-4. Play Console → **사용자 및 권한 > 사용자 초대** → 서비스 계정 이메일(`revenuecat-play@....iam.gserviceaccount.com`) 입력:
-   - 권한: "재무 데이터 보기", "주문 및 구독 관리"(앱 권한에서 `com.mirilook.app` 지정) → 초대 저장.
-5. 권한 전파에 최대 24~36시간 걸릴 수 있음(에러 나면 다음날 재시도).
+   - 이름 `mirilook-play-api` (RevenueCat·Codemagic 양쪽에서 함께 쓴다)
+   - **역할 2개 부여**: `Pub/Sub 편집자(Pub/Sub Editor)`, `모니터링 뷰어(Monitoring Viewer)`
+     - 권한 오류가 나면 Pub/Sub 편집자 대신 `Pub/Sub 관리자(Pub/Sub Admin)`로 올린다.
+   - 만든 계정 클릭 → **키 탭 > 키 추가 > 새 키 만들기 > JSON** → 다운로드.
+   - 🔒 **JSON은 `.secrets/`에 저장.** 이 저장소는 **PUBLIC**이라 커밋되면 즉시 유출이다
+     (`.gitignore`에 `*service-account*.json` 이중 방어 추가함).
+4. Play Console → **사용자 및 권한 > 사용자 초대** → 서비스 계정 이메일
+   (`mirilook-play-api@mirilook-play.iam.gserviceaccount.com`) 입력 → 앱 권한에 `com.mirilook.app`
+   추가 후 **권한 3개** 체크:
+   - 앱 정보 보기 및 일괄 보고서 다운로드(읽기 전용)
+   - 재무 데이터, 주문, 취소 설문 응답 보기
+   - 주문 및 구독 관리
+5. **권한 전파 최대 36시간.** 이게 앱 트랙 전체에서 가장 긴 리드타임이므로 **제일 먼저 걸어둘 것.**
+   - 팁(비공식): 수익 창출 섹션에서 아무 상품 설명이나 수정·저장하면 더 빨리 활성화되기도 한다(보장 없음).
+6. (ⓓ용) Codemagic이 Play에 자동 업로드하게 하려면 같은 서비스계정에 **출시 관리자(Release manager)**
+   권한을 추가한다. 단 **첫 업로드는 AAB를 수동 업로드하면 되므로 전파를 기다릴 필요 없다.**
 
 ### 7.3 RevenueCat 프로젝트
 

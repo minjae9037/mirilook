@@ -19,3 +19,23 @@ docs/01-mvp-scope.md
 docs/02-tech-stack.md
 
 .vercel
+
+# KG이니시스 INIAPI 인증서 키파일 (절대 커밋 금지)
+mirilook35/
+
+# 대표님 개인 상담/코디 export 이미지 (커밋 금지)
+/exports/
+apps/web/scripts/diag-*.mjs
+
+# ⚠️ 이 저장소는 PUBLIC이다. 아래는 유출 시 즉시 피해가 발생하는 자격증명 —
+# 반드시 .secrets/ 안에 두고, 아래 패턴으로 이중 방어한다.
+# - Google Play 서비스계정 JSON: Play 재무데이터·주문관리 권한
+# - 업로드 키스토어: 분실/유출 시 앱 업데이트 권한 문제 직결
+*.jks
+*.keystore
+*.p12
+*.p8
+*-service-account*.json
+*service-account*.json
+gcloud-*.json
+play-console-*.json
