@@ -6,8 +6,30 @@
 >
 > **철칙(안티-스티어링):** 앱 안에서는 "웹에서 구매/더 싸게" 류의 안내·링크·가격비교를 절대 노출하지 않는다.
 >
-> **상태:** 네이티브 스캐폴딩 완료(`@revenuecat/purchases-capacitor@13.2.1` 설치 + `cap sync android/ios` 통과).
-> 웹 측 코드(§6)는 **재패키징 시점에 붙일 드롭인 코드 블록**으로만 제공 — 지금 라이브 웹(apps/web)에는 미적용.
+> **상태(2026-07-16 갱신):** **웹 코드 구현 완료 — 커밋됨, 아직 미배포.**
+> §6의 드롭인 블록은 이제 "붙일 예정"이 아니라 **실제 파일로 존재**한다(아래 구현 좌표 참조).
+> 남은 것은 대표님 계정 작업(Play 인앱상품 6종 / Google Cloud 서비스계정 / RevenueCat /
+> Codemagic 시크릿)과, RevenueCat 공개키를 Vercel env에 넣고 웹 재배포하는 것.
+>
+> **실제 구현 좌표 (§6의 예시 코드보다 이쪽이 우선):**
+>
+> | 역할 | 파일 |
+> |---|---|
+> | Capacitor 감지 게이트 | `apps/web/src/lib/mirilook-native.ts` (`useIsMirilookApp`) |
+> | 네이티브 결제 클라이언트 | `apps/web/src/lib/native-billing.ts` |
+> | 상품 id 파생·역매핑 | `apps/web/src/lib/mirilook-payments.ts` (`toNativeProductId`, `getHairMoneyProductFromNativeProductId`) |
+> | 적립 엔드포인트 | `apps/web/src/app/api/payments/iap-grant/route.ts` |
+> | 스토어 게이트 | `apps/web/src/components/mirilook-hair-money-store.tsx` |
+> | 엔타이틀먼트 패널 숨김 | `apps/web/src/components/mirilook-payment-panel.tsx` |
+>
+> **§6 예시 코드와 실제 구현의 의도적 차이 3가지:**
+> 1. `useIsMirilookApp`은 `useState`+`useEffect`가 아니라 **`useSyncExternalStore`** — 린트 규칙
+>    `react-hooks/set-state-in-effect`에 걸리고, hydration 스냅샷 분리가 더 정확하다.
+>    반환값도 `{ isApp, isReady }`이며, 결제 버튼은 `isReady` 전까지 비활성이다.
+> 2. 상품 id는 하드코딩 표(`WEB_TO_NATIVE_PRODUCT`/`IAP_PRODUCTS`)가 아니라 **파생 함수** (§4 정정 참조).
+> 3. 적립은 RPC 직접 호출이 아니라 기존 **`creditHairMoneyForPayment({ gateway: "google_play" })`**
+>    래퍼를 재사용 → 원장 `source_type = "google_play_payment"` (§5의 `google_play_iap` 대신).
+>    웹 이니시스(`inicis_payment`)와 네임스페이스가 분리되므로 멱등성 효과는 동일하다.
 
 ---
 
@@ -172,20 +194,45 @@ export function useIsMirilookApp() {
 
 ## 4. 상품(SKU) 매핑 — Play Console·RevenueCat에 만들 소모성 상품
 
-웹 상품(`MirilookHairMoneyProducts`, `apps/web/src/lib/mirilook-payments.ts` 85~146행)과 1:1 대응.
+> ⚠️ **2026-07-16 정정.** 이 절의 원래 표(`hair_money_20/40/60/80/100`)는 **낡아서 폐기**했다.
+> 2026-07-08 이후 "충전량이 클수록 더 많이 지급"하는 볼륨 할인이 도입되면서 패키지별 HM
+> 수량이 전부 바뀌었다(20→24, 40→52, 60→80, 80→108, 100→136). 수량을 상품 id에 박으면
+> **Play 상품 id는 생성 후 변경 불가**라 영구적으로 어긋난다(예: 옛 표의 `hair_money_80`은
+> 44,000원인데 현재 80 HM 패키지는 33,000원).
+>
+> **그래서 id를 표로 관리하지 않는다.** 안정적인 웹 상품 id에서 기계적으로 파생한다:
+> `toNativeProductId(webId) = webId.replace(/-/g, "_")` (`apps/web/src/lib/mirilook-payments.ts`).
+> 수량·가격이 또 바뀌어도 id는 그대로라 드리프트가 구조적으로 불가능하다.
+
+웹 상품(`MirilookHairMoneyProducts`, `apps/web/src/lib/mirilook-payments.ts`)과 1:1 대응.
 가격은 웹과 동일하게 시작(비교 노출만 안 하면 다르게 매겨도 합법이지만, v1은 동일가로 단순하게).
 
-| Google product_id (소모성/관리형 상품) | 크레딧 수(HM) | 가격(원, VAT포함) | 웹 대응 패키지 id | 웹 상품명 |
-|---|---|---|---|---|
-| `hair_money_4`   | 4   | 2,200  | `hair-money-2000`  | Hair Money 4 |
-| `hair_money_20`  | 20  | 11,000 | `hair-money-10000` | Hair Money 20 |
-| `hair_money_40`  | 40  | 22,000 | `hair-money-20000` | Hair Money 40 |
-| `hair_money_60`  | 60  | 33,000 | `hair-money-30000` | Hair Money 60 |
-| `hair_money_80`  | 80  | 44,000 | `hair-money-40000` | Hair Money 80 |
-| `hair_money_100` | 100 | 55,000 | `hair-money-50000` | Hair Money 100 |
+**Play Console·RevenueCat에 만들 상품 (2026-07-16 기준 — 만들기 직전 아래 명령으로 재확인할 것):**
 
-- product_id 규칙: 소문자·숫자·밑줄·마침표, 생성 후 변경 불가 — 위 표기 그대로 생성.
-- 서버 매핑 테이블(§6-C의 `IAP_PRODUCTS`)이 이 표의 단일 원천. RevenueCat product_id → HM 수·웹 상품 id로 변환.
+| Google product_id | 크레딧 수(HM) | 가격(원, VAT포함) | 웹 대응 패키지 id | 웹 상품명 |
+|---|---|---|---|---|
+| `hair_money_2000`  | 4   | 2,200  | `hair-money-2000`  | Hair Money 4 |
+| `hair_money_10000` | 24  | 11,000 | `hair-money-10000` | Hair Money 24 |
+| `hair_money_20000` | 52  | 22,000 | `hair-money-20000` | Hair Money 52 |
+| `hair_money_30000` | 80  | 33,000 | `hair-money-30000` | Hair Money 80 |
+| `hair_money_40000` | 108 | 44,000 | `hair-money-40000` | Hair Money 108 |
+| `hair_money_50000` | 136 | 55,000 | `hair-money-50000` | Hair Money 136 |
+
+> id의 숫자(2000, 10000…)는 **가격도 수량도 아니고** 웹 패키지 id의 잔재다. 사람이 읽는 이름은
+> Play Console의 "이름"(Hair Money 4 등)에 넣으면 되고, id는 시스템 키로만 쓴다.
+
+**만들기 직전 현재 값 재확인 (단일 원천에서 직접 출력):**
+```bash
+# 저장소 루트에서 실행. id / 이름 / 가격 / HM수량을 한 번에 보여준다.
+grep -E "^    id: \"hair-money|^    name:|^    amount:|^    hairMoneyAmount:" \
+  apps/web/src/lib/mirilook-payments.ts
+```
+
+- product_id 규칙: 소문자·숫자·밑줄·마침표, **생성 후 변경 불가** — 위 표기 그대로 생성.
+- 서버 매핑은 하드코딩 표가 아니라 `getHairMoneyProductFromNativeProductId()`가 담당 —
+  `MirilookHairMoneyProducts`가 유일한 원천이라 웹 상품을 고치면 앱 매핑이 자동으로 따라온다.
+- ⚠️ **웹 패키지를 새로 추가하면 Play Console에도 같은 id로 상품을 만들어야 한다**(코드는 자동
+  파생하지만 Play 상품 생성은 수동). 반대로 웹 패키지 id를 바꾸면 기존 Play 상품과 끊긴다 — 금지.
 - 참고 마진: 55,000원 판매 시 구글 15% 공제 → 46,750원 정산(웹 PG 대비 낮음. 그래도 앱 내 가격 인상은 후속 판단 — 인상해도 앱 안에서 웹과 비교만 안 하면 됨).
 
 ---
@@ -786,15 +833,22 @@ async function grantIapCredit({
 
 ---
 
-## 9. 재패키징 체크리스트 (PG 연결 확정 후, 순서대로)
+## 9. 재패키징 체크리스트
 
-- [ ] 1. **웹 코드 반영** (apps/web — 이 시점부터 수정 허용):
-  - [ ] `src/lib/mirilook-native.ts` 신규 (§2.2)
-  - [ ] `src/lib/native-billing.ts` 신규 (§6-A, RevenueCat Public key 기입)
-  - [ ] `src/app/api/payments/iap-grant/route.ts` 신규 (§6-C)
-  - [ ] `mirilook-hair-money-store.tsx` 게이트 적용 (§6-B + §3.1 표 7개 항목)
-  - [ ] `mirilook-payment-panel.tsx` 네이티브 숨김 (§6-B 하단)
-- [ ] 2. Vercel env 추가: `REVENUECAT_WEBHOOK_AUTH` (+옵션 `REVENUECAT_SECRET_API_KEY`) → 웹 배포.
+> **중요 정정:** 이 체크리스트의 원래 전제는 "PG(이니시스) 연결 확정 후 시작"이었으나 **틀렸다.**
+> 앱은 Google Play 인앱결제만 쓰므로 **이니시스/카드사 심사와 의존관계가 없다.** 앱 트랙은
+> 카드사 심사와 완전히 병렬로 진행할 수 있고, 그래야 정식 론칭이 앞당겨진다.
+
+- [x] 1. **웹 코드 반영** (2026-07-16 완료, 커밋 `f8a3dad`):
+  - [x] `src/lib/mirilook-native.ts` 신규 — `useSyncExternalStore` 기반
+  - [x] `src/lib/native-billing.ts` 신규 — 공개키는 하드코딩이 아니라 `NEXT_PUBLIC_REVENUECAT_ANDROID_KEY` env
+  - [x] `src/app/api/payments/iap-grant/route.ts` 신규
+  - [x] `mirilook-hair-money-store.tsx` 게이트 적용 (§3.1 표 항목 반영)
+  - [x] `mirilook-payment-panel.tsx` 네이티브 숨김
+  - [x] `npm run verify:web` (lint+build) 통과 — 웹 회귀 없음
+- [ ] 2. Vercel env 추가: **`NEXT_PUBLIC_REVENUECAT_ANDROID_KEY`**(RevenueCat 공개키 `goog_...`),
+      `REVENUECAT_WEBHOOK_AUTH`(웹훅 인증 문자열) (+옵션 `REVENUECAT_SECRET_API_KEY`) → **웹 재배포**.
+      ⚠️ `NEXT_PUBLIC_*`은 빌드 시 번들에 박히므로 env만 넣고 재배포하지 않으면 앱에서 결제가 뜨지 않는다.
 - [ ] 3. Play Console: 지급 프로필 → 인앱 상품 6종 생성·활성화 (§7.1).
 - [ ] 4. Google Cloud 서비스 계정 JSON → Play Console 권한 부여 (§7.2).
 - [ ] 5. RevenueCat: 프로젝트·앱·상품 6종·웹훅 등록, Public API key 확보 (§7.3).
