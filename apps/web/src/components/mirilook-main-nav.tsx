@@ -61,8 +61,10 @@ export function MirilookMainNav() {
         {/* 좌측 상단 브랜드 — 전 페이지 공통 컴포넌트로 크기/위치 고정. */}
         <MirilookBrandLogo />
 
-        {/* 주요 목적지 링크는 모바일에서 하단 내비게이션으로 이동 — 데스크톱에서만 상단 노출 */}
-        <div className="hidden flex-wrap items-center gap-2 sm:flex">
+        {/* 주요 목적지 링크는 모바일에서 하단 내비게이션으로 이동 — 데스크톱에서만 상단 노출.
+            표시 조건은 globals.css의 .ml-desktop-nav(포인터 기반) — 폭만으로 판단하면
+            갤럭시 폴드 펼침이 데스크톱으로 오인된다. */}
+        <div className="ml-desktop-nav flex-wrap items-center gap-2">
           <Link className={linkClass} href="/salons">
             미용실
           </Link>

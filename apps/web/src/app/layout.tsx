@@ -143,7 +143,9 @@ export default function RootLayout({
       className="h-full overflow-x-clip antialiased"
       data-mirilook-theme="light"
     >
-      <body className="min-h-full ml-pink pb-[calc(3.75rem_+_env(safe-area-inset-bottom))] sm:pb-0">
+      {/* 하단 여백은 하단 내비 높이만큼 — 표시 조건과 반드시 같은 기준이어야 한다.
+          globals.css의 .ml-app-body 참조(포인터 기반). */}
+      <body className="ml-app-body min-h-full ml-pink">
         {/* 하트스코어와 동일한 Pretendard Variable(dynamic-subset)을 런타임 로드.
             React가 stylesheet link를 <head>로 호이스트한다. Tailwind v4 빌드가 CSS
             @import를 인라인하다 실패해 폰트가 안 뜨던 문제 우회. */}

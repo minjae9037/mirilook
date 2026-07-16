@@ -109,7 +109,7 @@ export function MirilookBottomNav() {
   return (
     <nav
       aria-label="주요 메뉴"
-      className="fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur sm:hidden"
+      className="ml-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur"
       style={{
         background: "var(--ml-card, #ffffff)",
         borderColor: "var(--ml-border, rgba(25, 31, 40, 0.12))",

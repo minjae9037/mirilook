@@ -794,3 +794,39 @@ html[data-mirilook-theme="light"] .ml-home-secondary-button {
 .ml-home-bottom-cta p + p {
   color: var(--mlh-bottom-sub);
 }
+
+/* ── 모바일/데스크톱 내비 전환 기준 ────────────────────────────────────────
+   가로 폭만으로 판단하면 안 된다. 갤럭시 폴드를 펼치면 뷰포트가 640px(Tailwind sm)을
+   넘어서 데스크톱으로 오인되고, 손에 들고 쓰는 기기인데 하단 내비가 사라진다.
+
+   물어야 할 질문은 "폭이 넓은가"가 아니라 "손에 들고 쓰는 기기인가"이고,
+   그 답은 pointer 미디어 쿼리다. 앱(Capacitor 웹뷰)도 터치 기기라 이 규칙 하나로
+   앱·웹이 함께 해결된다 — 별도의 네이티브 감지가 필요 없다.
+
+   데스크톱 = 마우스가 주 입력(pointer: fine) AND 폭 640px 이상.
+   (터치 노트북은 주 포인터가 fine이라 데스크톱으로 잡힌다 — 의도된 동작) */
+.ml-bottom-nav {
+  display: block;
+}
+
+.ml-desktop-nav {
+  display: none;
+}
+
+.ml-app-body {
+  padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
+}
+
+@media (pointer: fine) and (min-width: 640px) {
+  .ml-bottom-nav {
+    display: none;
+  }
+
+  .ml-desktop-nav {
+    display: flex;
+  }
+
+  .ml-app-body {
+    padding-bottom: 0;
+  }
+}
