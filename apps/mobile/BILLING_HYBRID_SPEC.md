@@ -790,7 +790,10 @@ async function grantIapCredit({
 
 **전제:** Play Console에 앱(`com.mirilook.app`)이 **이미 만들어져 있어야** 4번의 앱 권한 지정이 가능하다.
 
-1. https://console.cloud.google.com → 프로젝트 선택(없으면 신규 `mirilook-play`).
+1. https://console.cloud.google.com → 프로젝트 선택.
+   **실제 사용 프로젝트(2026-07-16 확정): 이름 `Miri Look` / ID `miri-look` / 번호 `1091233116730`.**
+   (기존에 여기 적혀 있던 `mirilook-play`는 제안명일 뿐이었고, 실제로는 위 프로젝트를 그대로 쓴다.
+   프로젝트 ID는 생성 후 변경 불가이므로 이 값이 최종이다.)
 2. **API 및 서비스 > 라이브러리**에서 아래 **5개를 모두** 검색 → **사용 설정**:
    - Google Play Android Developer API (Android Publisher API)
    - Google Play Developer Reporting API
@@ -805,8 +808,8 @@ async function grantIapCredit({
    - 🔒 **JSON은 `.secrets/`에 저장.** 이 저장소는 **PUBLIC**이라 커밋되면 즉시 유출이다
      (`.gitignore`에 `*service-account*.json` 이중 방어 추가함).
 4. Play Console → **사용자 및 권한 > 사용자 초대** → 서비스 계정 이메일
-   (`mirilook-play-api@mirilook-play.iam.gserviceaccount.com`) 입력 → 앱 권한에 `com.mirilook.app`
-   추가 후 **권한 3개** 체크:
+   (`mirilook-play-api@miri-look.iam.gserviceaccount.com` — 도메인은 **프로젝트 ID**라 `miri-look`이다)
+   입력 → 앱 권한에 `com.mirilook.app` 추가 후 **권한 3개** 체크:
    - 앱 정보 보기 및 일괄 보고서 다운로드(읽기 전용)
    - 재무 데이터, 주문, 취소 설문 응답 보기
    - 주문 및 구독 관리
