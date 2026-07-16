@@ -145,10 +145,38 @@ Photos you upload are used only to generate hairstyle recommendations and are ha
 
 ## 5. 서명(Signing) 계획
 
-- **Play 앱 서명(Play App Signing) 사용**(권장): 구글이 최종 서명키를 관리. 대표님은 **업로드 키**만 관리.
-- 업로드 키(keystore) 생성은 **이 PC에 JDK/keytool이 없어 로컬 불가** → 두 경로 중 택1:
-  1. **Codemagic이 자동 관리**(권장): CI에서 키 생성·보관. 별도 keytool 불필요.
-  2. JDK 설치 후 `keytool -genkey -v -keystore mirilook-upload.jks -keyalg RSA -keysize 2048 -validity 9125 -alias mirilook` 로 직접 생성 → **비밀번호는 대표님만 보관(분실 시 앱 업데이트 영구 불가)**.
+> ⚠️ **2026-07-16 정정.** 이 절에 "분실 시 앱 업데이트 영구 불가"라고 적혀 있었으나 **부정확**하다.
+> 같은 절이 권장하는 **Play 앱 서명을 쓰면 업로드 키를 잃어도 재설정할 수 있다.**
+> 구글 공식 문서: *"If you lose your upload key or suspect it was compromised, you are not
+> locked out of your app."* (Play Console Help — Play App Signing, 2026-07-16 확인)
+
+**키가 2개라는 것부터 이해할 것 — 심각도가 완전히 다르다.**
+
+| 키 | 보관 주체 | 용도 | 분실 시 |
+|---|---|---|---|
+| **앱 서명 키**(app signing key) | **구글**(KMS) | 사용자에게 배포되는 APK에 최종 서명 | 구글이 KMS로 보호 → **대표님이 잃어버릴 수 없음** |
+| **업로드 키**(upload key) | **대표님** | Play에 업로드할 때 신원 증명용 | **재설정 가능** — 새 키 만들어 PEM 인증서를 Play Console로 제출 |
+
+- ✅ **Play 앱 서명을 반드시 켠다**(신규 앱 기본값, 90%+가 사용). 그래야 위 표가 성립한다.
+  **끄고 자체 서명하면 그때는 진짜로 "분실 = 업데이트 영구 불가"**가 된다 — 끄지 말 것.
+- 업로드 키 생성은 **이 PC에 JDK/keytool이 없어 로컬 불가** → Codemagic이 생성·보관(권장).
+
+**그래도 백업은 필수다.** 재설정이 되긴 하지만 구글 지원팀 왕복으로 **수일**이 걸린다. 긴급 핫픽스가
+필요한 날 며칠 묶이는 것은 실질적 사고다. 백업은 5초다.
+
+**백업 대상 4종 — 하나라도 빠지면 무용지물:**
+1. 키스토어 파일(`.jks`)
+2. 키스토어 비밀번호
+3. 키 별칭(alias)
+4. 키 비밀번호
+
+**보관처:**
+- ⛔ **이 저장소 절대 금지 — PUBLIC이다.** (`.gitignore`에 `*.jks`/`*.keystore` 방어선 추가함)
+- ✅ 비밀번호 관리자에 비밀번호·alias
+- ✅ 암호화된 클라우드/외장 저장소에 `.jks` 파일
+- ✅ 작업용 사본은 `.secrets/`(gitignore됨)
+- ⚠️ **Codemagic이 보관하는 것은 백업이 아니다.** 계정 상실·구독 종료 시 접근 불가 →
+  반드시 **다운로드해서 별도 보관**할 것.
 
 ---
 
