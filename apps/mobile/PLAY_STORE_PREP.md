@@ -159,7 +159,36 @@ Photos you upload are used only to generate hairstyle recommendations and are ha
 
 - ✅ **Play 앱 서명을 반드시 켠다**(신규 앱 기본값, 90%+가 사용). 그래야 위 표가 성립한다.
   **끄고 자체 서명하면 그때는 진짜로 "분실 = 업데이트 영구 불가"**가 된다 — 끄지 말 것.
-- 업로드 키 생성은 **이 PC에 JDK/keytool이 없어 로컬 불가** → Codemagic이 생성·보관(권장).
+
+> ⚠️ **2026-07-17 정정 — "이 PC에 JDK/keytool이 없어 로컬 불가"는 사실이 아니었다.**
+> scoop로 설치돼 PATH에 없었을 뿐, **JDK·Android SDK 모두 존재한다**(자매 프로젝트 하트스코어가
+> 이 PC에서 키스토어 생성·AAB 빌드까지 완료한 것이 증거). 따라서 Codemagic은 **선택**이지 필수가 아니다.
+>
+> | 도구 | 경로 |
+> |---|---|
+> | JDK 17.0.19 (Temurin) | `C:\Users\minja\scoop\apps\temurin17-jdk\current` |
+> | keytool | `<JAVA_HOME>\bin\keytool.exe` |
+> | Android SDK (build-tools 34/35, platforms 35/36) | `C:\Users\minja\scoop\apps\android-clt\current` |
+
+**업로드 키 생성: 완료 (2026-07-17, 로컬 keytool).**
+
+| 항목 | 값 |
+|---|---|
+| 파일 | `.secrets/mirilook-upload.jks` (2,748 bytes) |
+| 별칭(alias) | `mirilook` |
+| 알고리즘 | RSA 2048 / 유효기간 9,125일(≈25년) |
+| 주체(dname) | `CN=Mirilook, OU=Mobile, O=MJ Insight, L=Bucheon, ST=Gyeonggi, C=KR` |
+| **업로드 키 SHA-256** | `85:7D:BC:D6:5C:F0:E9:6C:68:8F:BD:16:23:9D:23:83:E2:EB:89:32:57:5E:29:E3:24:87:47:22:31:31:08:C9` |
+| 원본 체크섬(SHA-256) | `455ca6d9becabc53224c4f532a3b849867d18cc538d86b2e77a5f9918750b10b` |
+| 비밀번호 | `.secrets/mirilook-keystore-password.txt` (32자 랜덤 영숫자, storepass=keypass 동일) |
+| Notion 백업용 base64 | `.secrets/mirilook-upload.jks.base64.txt` (복원 후 원본과 바이트 동일 검증 완료) |
+
+재생성 명령(참고 — **이미 만들었으므로 다시 실행하지 말 것. 덮어쓰면 기존 키를 잃는다**):
+```bash
+"$JAVA_HOME/bin/keytool.exe" -genkeypair -v -keystore mirilook-upload.jks -alias mirilook \
+  -keyalg RSA -keysize 2048 -validity 9125 -storepass "$PW" -keypass "$PW" \
+  -dname "CN=Mirilook, OU=Mobile, O=MJ Insight, L=Bucheon, ST=Gyeonggi, C=KR"
+```
 
 **그래도 백업은 필수다.** 재설정이 되긴 하지만 구글 지원팀 왕복으로 **수일**이 걸린다. 긴급 핫픽스가
 필요한 날 며칠 묶이는 것은 실질적 사고다. 백업은 5초다.
