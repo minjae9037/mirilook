@@ -1,12 +1,12 @@
 "use client";
 
-import * as PortOne from "@portone/browser-sdk/v2";
 import {
   Check,
   ChevronRight,
   Coins,
   CreditCard,
   Gift,
+  Info,
   Loader2,
   RefreshCw,
   ShieldCheck,
@@ -17,14 +17,27 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { MirilookGenerationRefundNotice } from "@/components/mirilook-generation-refund-notice";
+import { useIsMirilookApp } from "@/lib/mirilook-native";
 import {
   formatHairMoney,
+  HairMoneyExtraConsultationCost,
   HairMoneyRecommendationCost,
   HairMoneyRecommendationPriceKrw,
   HairMoneyUnitPriceKrw,
+  HairMoneyValidityMonths,
   MirilookHairMoneyProducts,
+  toNativeProductId,
 } from "@/lib/mirilook-payments";
-import { getSupabaseAccessToken } from "@/lib/supabase-browser";
+import {
+  ensureNativeBillingReady,
+  getNativeHairMoneyProducts,
+  isNativeBillingAvailable,
+  purchaseNativeHairMoney,
+} from "@/lib/native-billing";
+import {
+  getSupabaseAccessToken,
+  getSupabaseBrowserClient,
+} from "@/lib/supabase-browser";
 import { trackEvent } from "@/lib/mirilook-analytics";
 
 type HairMoneyLedgerItem = {
@@ -46,35 +59,78 @@ type HairMoneyWalletResponse = {
   synced?: boolean;
 };
 
-type CheckoutResponse = {
-  amount?: number;
-  buyer?: {
-    email?: string | null;
-    name?: string | null;
-  };
-  channelKey?: string;
+type InicisPrepareResponse = {
   configured?: boolean;
-  currency?: "KRW";
-  orderName?: string;
-  paymentId?: string;
-  productId?: string;
+  jsUrl?: string;
+  mode?: string;
+  form?: Record<string, string>;
   reason?: string;
-  storeId?: string;
 };
 
-type PaymentCompleteResponse = {
-  hairMoney?: {
-    amount: number;
-    applied: boolean;
-    balance: number;
-    reason?: string;
-    synced: boolean;
-  } | null;
-  reason?: string;
-  verified?: boolean;
-};
+declare global {
+  interface Window {
+    INIStdPay?: { pay: (formId: string) => void };
+  }
+}
+
+// 이니시스 표준결제 JS(INIStdPay) 로드 — 테스트/운영 URL은 서버가 내려준다.
+function loadInicisScript(src: string) {
+  return new Promise<void>((resolve, reject) => {
+    if (typeof window !== "undefined" && window.INIStdPay) {
+      resolve();
+      return;
+    }
+
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[data-inicis="1"]',
+    );
+    if (existing) {
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () =>
+        reject(new Error("inicis_script_error")),
+      );
+      if (window.INIStdPay) {
+        resolve();
+      }
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.dataset.inicis = "1";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("inicis_script_error"));
+    document.head.appendChild(script);
+  });
+}
+
+// 결제 파라미터를 hidden form에 담아 INIStdPay.pay 호출.
+function submitInicisForm(fields: Record<string, string>) {
+  const FORM_ID = "SendPayForm_id";
+  document.getElementById(FORM_ID)?.remove();
+
+  const form = document.createElement("form");
+  form.id = FORM_ID;
+  form.method = "POST";
+  form.acceptCharset = "UTF-8";
+
+  for (const [name, value] of Object.entries(fields)) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value ?? "";
+    form.appendChild(input);
+  }
+
+  document.body.appendChild(form);
+  window.INIStdPay?.pay(FORM_ID);
+}
 
 export function MirilookHairMoneyStore() {
+  // 앱(안드로이드) 안에서는 구글 인앱결제로만 판매한다. 디지털 재화를 외부 PG로
+  // 앱 안에서 파는 것은 Google Play 결제 정책 위반이라 이니시스 경로를 완전히 차단한다.
+  const { isApp, isReady } = useIsMirilookApp();
   const products = useMemo(() => [...MirilookHairMoneyProducts].reverse(), []);
   const [selectedProductId, setSelectedProductId] = useState(products[0]?.id ?? "");
   const [wallet, setWallet] = useState<HairMoneyWalletResponse>({
@@ -93,7 +149,56 @@ export function MirilookHairMoneyStore() {
 
   useEffect(() => {
     void refreshWallet();
+
+    // 이니시스 결제 결과(returnUrl 리다이렉트) 처리 — effect 내 직접 setState 회피 위해 지연.
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      const result = params.get("payment");
+      if (!result) {
+        return;
+      }
+
+      if (result === "success") {
+        setStatus("결제가 완료되었습니다. Hair Money가 적립되었습니다.");
+        void reconcileThenRefreshWallet();
+      } else if (result === "closed") {
+        setStatus("결제를 취소했습니다. 다시 시도할 수 있습니다.");
+      } else if (result === "fail") {
+        setStatus(
+          `결제가 완료되지 않았습니다. (${params.get("reason") ?? "실패"}) 다시 시도해 주세요.`,
+        );
+      }
+
+      params.delete("payment");
+      params.delete("reason");
+      params.delete("oid");
+      const rest = params.toString();
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${rest ? `?${rest}` : ""}`,
+      );
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+    // 마운트 1회 실행(결제 복귀 처리) — 내부 헬퍼는 최신 클로저를 참조하므로 의존성 제외.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 승인은 됐으나 적립이 끊긴 주문 보정 후 잔액 새로고침(안전망).
+  async function reconcileThenRefreshWallet() {
+    try {
+      const token = await getSupabaseAccessToken();
+      if (token) {
+        await fetch("/api/payments/inicis/reconcile/", {
+          headers: { Authorization: `Bearer ${token}` },
+          method: "POST",
+        }).catch(() => null);
+      }
+    } finally {
+      await refreshWallet();
+    }
+  }
 
   async function refreshWallet() {
     setIsLoadingWallet(true);
@@ -142,8 +247,84 @@ export function MirilookHairMoneyStore() {
     }
   }
 
+  // 앱: Google Play 결제 시트 → 서버 적립(iap-grant). 이니시스 경로는 절대 타지 않는다.
+  async function startNativePayment() {
+    if (!selectedProduct) {
+      return;
+    }
+
+    setIsPaying(true);
+    setNeedsLogin(false);
+    setStatus("Google Play 결제를 준비하는 중입니다.");
+    trackEvent("checkout_started", {
+      amount: selectedProduct.amount,
+      productId: selectedProduct.id,
+    });
+
+    try {
+      const token = await getSupabaseAccessToken();
+      const session = await getSupabaseBrowserClient()?.auth.getSession();
+      const profileId = session?.data.session?.user.id ?? null;
+
+      if (!token || !profileId) {
+        setNeedsLogin(true);
+        setStatus("Hair Money 충전은 로그인된 계정에 적립됩니다.");
+        return;
+      }
+
+      if (!isNativeBillingAvailable()) {
+        setStatus(
+          "앱 결제 모듈을 불러오지 못했습니다. 앱을 최신 버전으로 업데이트한 뒤 다시 시도해 주세요.",
+        );
+        return;
+      }
+
+      await ensureNativeBillingReady(profileId);
+
+      const nativeProductId = toNativeProductId(selectedProduct.id);
+      const nativeProducts = await getNativeHairMoneyProducts();
+      const nativeProduct = nativeProducts.find(
+        (item) => item.identifier === nativeProductId,
+      );
+
+      if (!nativeProduct) {
+        setStatus("상품 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        return;
+      }
+
+      const grant = await purchaseNativeHairMoney({
+        accessToken: token,
+        product: nativeProduct,
+      });
+
+      setStatus(
+        grant.applied
+          ? "결제가 완료되었습니다. Hair Money가 적립되었습니다."
+          : "결제가 완료되었습니다. 적립 반영을 확인하는 중입니다.",
+      );
+      await refreshWallet();
+    } catch (error) {
+      if (error instanceof Error && error.message === "purchase_cancelled") {
+        setStatus("결제를 취소했습니다. 다시 시도할 수 있습니다.");
+      } else {
+        console.error(error);
+        setStatus(
+          "Google Play 결제 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+        );
+      }
+    } finally {
+      setIsPaying(false);
+    }
+  }
+
   async function startPayment() {
     if (!selectedProduct) {
+      return;
+    }
+
+    // 네이티브 분기는 최상단 — 아래 이니시스 경로로 절대 흘러가면 안 된다.
+    if (isApp) {
+      await startNativePayment();
       return;
     }
 
@@ -164,120 +345,28 @@ export function MirilookHairMoneyStore() {
         return;
       }
 
-      const response = await fetch("/api/payments/checkout/", {
-        body: JSON.stringify({
-          productId: selectedProduct.id,
-        }),
+      const response = await fetch("/api/payments/inicis/prepare/", {
+        body: JSON.stringify({ productId: selectedProduct.id }),
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         method: "POST",
       });
-      const checkout = (await response.json().catch(() => ({
+      const prepare = (await response.json().catch(() => ({
         reason: `server_${response.status}`,
-      }))) as CheckoutResponse;
+      }))) as InicisPrepareResponse;
 
-      if (!response.ok || !checkout.configured) {
-        setStatus(getCheckoutErrorMessage(checkout.reason));
-        setNeedsLogin(checkout.reason === "not_authenticated");
+      if (!response.ok || !prepare.configured || !prepare.form || !prepare.jsUrl) {
+        setStatus(getCheckoutErrorMessage(prepare.reason));
+        setNeedsLogin(prepare.reason === "not_authenticated");
         return;
       }
 
-      if (
-        !checkout.storeId ||
-        !checkout.channelKey ||
-        !checkout.paymentId ||
-        !checkout.orderName ||
-        !checkout.amount
-      ) {
-        setStatus("결제 요청 정보가 완전하지 않습니다.");
-        return;
-      }
-
-      const payment = await PortOne.requestPayment({
-        channelKey: checkout.channelKey,
-        currency: checkout.currency ?? "KRW",
-        customer: buildPortOneCustomer(checkout),
-        customData: {
-          productId: checkout.productId,
-          productKind: selectedProduct.productKind,
-          source: "mirilook_hair_money_store",
-        },
-        orderName: checkout.orderName,
-        payMethod: "CARD",
-        paymentId: checkout.paymentId,
-        productType: "DIGITAL",
-        products: [
-          {
-            amount: checkout.amount,
-            code: selectedProduct.id,
-            id: selectedProduct.id,
-            name: selectedProduct.name,
-            quantity: 1,
-            tag: "hair_money",
-          },
-        ],
-        redirectUrl: `${window.location.origin}/store`,
-        storeId: checkout.storeId,
-        totalAmount: checkout.amount,
-      });
-
-      if (!payment) {
-        setStatus("결제창이 닫혔습니다.");
-        return;
-      }
-
-      if (typeof payment.code === "string" && payment.code) {
-        setStatus(payment.message || "결제가 완료되지 않았습니다.");
-        return;
-      }
-
-      const completeResponse = await fetch("/api/payments/complete/", {
-        body: JSON.stringify({
-          amount: checkout.amount,
-          paymentId: checkout.paymentId,
-          productId: checkout.productId,
-          status:
-            "transactionType" in payment &&
-            typeof payment.transactionType === "string"
-              ? payment.transactionType
-              : "paid",
-        }),
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-      });
-      const complete = (await completeResponse.json().catch(() => ({
-        reason: `server_${completeResponse.status}`,
-        verified: false,
-      }))) as PaymentCompleteResponse;
-
-      if (!completeResponse.ok || !complete.verified) {
-        setStatus(getPaymentCompleteMessage(complete.reason));
-        return;
-      }
-
-      if (complete.hairMoney?.synced) {
-        setWallet((current) => ({
-          ...current,
-          balance: complete.hairMoney?.balance ?? current.balance,
-          recommendationCost: HairMoneyRecommendationCost,
-          synced: true,
-        }));
-        setStatus(
-          `${formatHairMoney(complete.hairMoney.amount)} Hair Money 충전이 완료되었습니다. 현재 잔액은 ${formatHairMoney(complete.hairMoney.balance)} HM입니다.`,
-        );
-        void refreshWallet();
-        return;
-      }
-
-      setStatus(
-        "결제는 확인되었습니다. Hair Money 적립 상태는 서버 저장소를 다시 확인합니다.",
-      );
-      void refreshWallet();
+      // 이니시스 표준결제창(INIStdPay) 호출. 결과는 서버 returnUrl → /store?payment=... 로 수신.
+      await loadInicisScript(prepare.jsUrl);
+      setStatus("결제창을 여는 중입니다...");
+      submitInicisForm(prepare.form);
     } catch (error) {
       console.error(error);
       setStatus(getPaymentClientErrorMessage(error));
@@ -302,10 +391,10 @@ export function MirilookHairMoneyStore() {
                 Hair Money를 충전하세요
               </h2>
               <p className="mt-2 text-sm leading-6 text-[#b8aa95]">
-                PortOne 결제가 확인되면 로그인한 계정 지갑에 즉시 적립됩니다.
+                결제가 확인되면 로그인한 계정 지갑에 즉시 적립됩니다.
                 헤어스타일 추천을 요청할 때마다 {HairMoneyRecommendationCost} HM
-                ({HairMoneyRecommendationPriceKrw.toLocaleString("ko-KR")}원 기준)이
-                차감되고, 생성 결과와 사용 내역으로 기록됩니다.
+                ({HairMoneyRecommendationPriceKrw.toLocaleString("ko-KR")}원, VAT 포함
+                기준)이 차감되고, 생성 결과와 사용 내역으로 기록됩니다.
               </p>
               <MirilookGenerationRefundNotice className="mt-3" />
             </div>
@@ -333,7 +422,7 @@ export function MirilookHairMoneyStore() {
             <SummaryTile
               label="추천 1회 차감"
               value={`${HairMoneyRecommendationCost} HM`}
-              helper={`${HairMoneyRecommendationPriceKrw.toLocaleString("ko-KR")}원 기준`}
+              helper={`${HairMoneyRecommendationPriceKrw.toLocaleString("ko-KR")}원 VAT 포함 기준`}
             />
             <SummaryTile
               label="선택 상품"
@@ -353,18 +442,28 @@ export function MirilookHairMoneyStore() {
                 </h2>
               </div>
               <p className="mt-2 text-sm leading-6 text-[#b8aa95]">
-                할인 없이 1 Hair Money를 {HairMoneyUnitPriceKrw.toLocaleString("ko-KR")}원으로
-                환산합니다. 충전한 Hair Money는 회원 계정에 적립되고 추천 사용 시 차감됩니다.
+                같은 원화로 더 많은 Hair Money를 드립니다 — 충전 금액이 클수록 최대 약 26.5%까지
+                추가 적립됩니다. (1 Hair Money 정가 환산 {HairMoneyUnitPriceKrw.toLocaleString("ko-KR")}원, VAT 포함)
+                충전한 Hair Money는 회원 계정에 적립되고 추천 사용 시 차감됩니다.
               </p>
             </div>
             <span className="w-fit rounded-md border border-[#f3d28a]/30 bg-[#30271a]/60 px-3 py-2 text-xs font-bold text-[#f3d28a]">
-              PortOne PG
+              {isApp ? "Google Play 결제" : "KG이니시스 PG"}
             </span>
           </div>
 
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {products.map((product) => {
               const selected = product.id === selectedProduct?.id;
+              const listPriceKrw =
+                (product.hairMoneyAmount ?? 0) * HairMoneyUnitPriceKrw;
+              const hasDiscount = listPriceKrw > product.amount;
+              const discountPercent = hasDiscount
+                ? formatDiscountPercent((1 - product.amount / listPriceKrw) * 100)
+                : null;
+              const perUnitKrw = product.hairMoneyAmount
+                ? Math.floor(product.amount / product.hairMoneyAmount)
+                : HairMoneyUnitPriceKrw;
 
               return (
                 <button
@@ -388,9 +487,9 @@ export function MirilookHairMoneyStore() {
                       </div>
                       <p className="mt-3 text-3xl font-black text-[#fffaf1]">
                         {formatHairMoney(product.hairMoneyAmount)}
-                        {product.discountLabel ? (
-                          <span className="ml-2 align-middle text-sm font-semibold text-[#f3d28a]">
-                            {product.discountLabel}
+                        {discountPercent ? (
+                          <span className="ml-2 inline-block rounded-md bg-[#1f9d57] px-1.5 py-0.5 align-middle text-xs font-extrabold text-white">
+                            {discountPercent}% 할인
                           </span>
                         ) : null}
                       </p>
@@ -415,11 +514,21 @@ export function MirilookHairMoneyStore() {
                         {perk}
                       </span>
                     ))}
+                    <span className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-xs font-semibold text-[#d8cbb8]">
+                      1 Hair Money = {perUnitKrw.toLocaleString("ko-KR")}원 (VAT 포함)
+                    </span>
                   </div>
 
                   <div className="mt-4 flex items-center justify-between gap-3">
-                    <span className="text-xl font-bold text-[#f3d28a]">
-                      {product.amount.toLocaleString("ko-KR")}원
+                    <span className="flex items-baseline gap-2">
+                      {hasDiscount ? (
+                        <span className="text-sm font-semibold text-[#8f826f] line-through decoration-[#ff5c8a] decoration-2">
+                          {listPriceKrw.toLocaleString("ko-KR")}원
+                        </span>
+                      ) : null}
+                      <span className="text-xl font-bold text-[#f3d28a]">
+                        {product.amount.toLocaleString("ko-KR")}원
+                      </span>
                     </span>
                     <span
                       className={`inline-flex size-7 items-center justify-center rounded-md border ${
@@ -485,13 +594,15 @@ export function MirilookHairMoneyStore() {
           </p>
         </div>
 
+        {/* isReady 전에는 웹/앱 분기가 확정되지 않는다(SSR HTML은 항상 웹 모드).
+            결제 버튼은 확정 전까지 비활성 — 앱에서 이니시스 경로가 스치는 것을 원천 차단. */}
         <button
           className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#f3d28a] px-4 text-sm font-bold text-[#1a1712] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:bg-[#4a412e] disabled:text-[#b8aa95]"
-          disabled={isPaying}
+          disabled={isPaying || !isReady}
           onClick={() => void startPayment()}
           type="button"
         >
-          {isPaying ? (
+          {isPaying || !isReady ? (
             <Loader2 aria-hidden="true" className="animate-spin" size={17} />
           ) : (
             <CreditCard aria-hidden="true" size={17} />
@@ -508,6 +619,38 @@ export function MirilookHairMoneyStore() {
           </Link>
         ) : null}
 
+        {/* 결제 경로별 필수 고지 — 웹은 PG(이니시스), 앱은 Google Play 정책. */}
+        <div className="rounded-md border border-[#f3d28a]/45 bg-[#f3d28a]/10 p-3">
+          <div className="flex items-center gap-2">
+            <Info aria-hidden="true" className="text-[#f3d28a]" size={16} />
+            <p className="text-sm font-bold text-[#fffaf1]">충전 전 필수 확인</p>
+          </div>
+          <ul className="mt-2 grid gap-1.5 text-xs leading-5 text-[#e7dccb]">
+            <li>
+              · 충전한 Hair Money의 사용기간(유효기간)은 충전일로부터{" "}
+              <b className="text-[#fffaf1]">{HairMoneyValidityMonths / 12}년</b>
+              입니다. 기간이 지나면 소멸될 수 있습니다.
+            </li>
+            {isApp ? (
+              <li>
+                · 구매·환불은 <b className="text-[#fffaf1]">Google Play 결제 정책</b>
+                을 따르며, 환불은 Google Play 주문내역에서 신청할 수 있습니다.
+              </li>
+            ) : (
+              <>
+                <li>
+                  · 환불은 <b className="text-[#fffaf1]">최초 결제하신 결제수단</b>
+                  (카드 등)으로만 가능합니다.
+                </li>
+                <li>
+                  · 구매 후 <b className="text-[#fffaf1]">7일 이내</b> 사용하지 않은
+                  Hair Money는 청약철회(취소·환불)할 수 있습니다.
+                </li>
+              </>
+            )}
+          </ul>
+        </div>
+
         <p className="rounded-md border border-white/10 bg-[#0f0e0c]/72 px-3 py-2 text-sm leading-6 text-[#b8aa95]">
           {status}
         </p>
@@ -515,26 +658,40 @@ export function MirilookHairMoneyStore() {
         <div className="rounded-md border border-white/10 bg-[#0f0e0c]/72 p-3">
           <div className="flex items-center gap-2">
             <ShieldCheck aria-hidden="true" className="text-[#b7e3bb]" size={17} />
-            <p className="text-sm font-bold text-[#fffaf1]">사용 규칙</p>
+            <p className="text-sm font-bold text-[#fffaf1]">사용처 및 사용 규칙</p>
           </div>
           <div className="mt-3 grid gap-2 text-sm leading-6 text-[#b8aa95]">
             <p className="flex gap-2">
               <Check aria-hidden="true" className="mt-1 shrink-0 text-[#b7e3bb]" size={15} />
-              추천 요청 시 {HairMoneyRecommendationCost} Hair Money가 차감됩니다.
+              Hair Money는 미리룩의 유료 기능에 사용합니다 — 헤어스타일 추천,
+              AI 상담용 이미지(9방향) 생성, 코디 추천 등.
             </p>
             <p className="flex gap-2">
               <Check aria-hidden="true" className="mt-1 shrink-0 text-[#b7e3bb]" size={15} />
-              1 Hair Money는 {HairMoneyUnitPriceKrw.toLocaleString("ko-KR")}원이며,
-              추천 1회는 {HairMoneyRecommendationPriceKrw.toLocaleString("ko-KR")}원 기준입니다.
+              헤어 추천 1회 {HairMoneyRecommendationCost} Hair Money, 추가 상담
+              세트(9방향) 생성 1회 {HairMoneyExtraConsultationCost} Hair Money가
+              차감됩니다.
             </p>
             <p className="flex gap-2">
               <Check aria-hidden="true" className="mt-1 shrink-0 text-[#b7e3bb]" size={15} />
-              PortOne 결제 상태, 금액, 통화가 모두 맞을 때만 계정 지갑에 적립됩니다.
+              1 Hair Money는 {HairMoneyUnitPriceKrw.toLocaleString("ko-KR")}원(VAT 포함)이며,
+              추천 1회는 {HairMoneyRecommendationPriceKrw.toLocaleString("ko-KR")}원(VAT 포함)
+              기준입니다.
+            </p>
+            <p className="flex gap-2">
+              <Check aria-hidden="true" className="mt-1 shrink-0 text-[#b7e3bb]" size={15} />
+              충전한 Hair Money의 사용기간(유효기간)은 충전일로부터{" "}
+              {HairMoneyValidityMonths / 12}년입니다.
+            </p>
+            <p className="flex gap-2">
+              <Check aria-hidden="true" className="mt-1 shrink-0 text-[#b7e3bb]" size={15} />
+              결제 승인·금액·통화가 모두 맞을 때만 계정 지갑에 적립되며,
+              사용·적립 내역은 마이페이지에서 확인할 수 있습니다.
             </p>
           </div>
         </div>
 
-        <RefundPolicy />
+        <RefundPolicy isApp={isApp} />
       </aside>
     </section>
   );
@@ -625,7 +782,7 @@ function CoinMark() {
   );
 }
 
-function RefundPolicy() {
+function RefundPolicy({ isApp }: { isApp: boolean }) {
   return (
     <section className="rounded-md border border-white/10 bg-[#0f0e0c]/72 p-3">
       <div className="flex items-center gap-2">
@@ -633,15 +790,40 @@ function RefundPolicy() {
         <h2 className="text-sm font-bold text-[#fffaf1]">환불 정책 요약</h2>
       </div>
       <ul className="mt-3 grid gap-2 text-xs leading-5 text-[#8f826f]">
-        <li>· Hair Money는 유상 충전 사이버머니이며 현재 충전 기준은 1 Hair Money당 {HairMoneyUnitPriceKrw.toLocaleString("ko-KR")}원입니다.</li>
-        <li>· 구매 후 사용하지 않은 유상 Hair Money는 관련 법령과 환불정책에 따라 환불 요청할 수 있습니다.</li>
+        <li>· Hair Money는 유상 충전 사이버머니이며 현재 충전 기준은 1 Hair Money당 {HairMoneyUnitPriceKrw.toLocaleString("ko-KR")}원(VAT 포함)입니다.</li>
+        {isApp ? (
+          <li>· 구매·환불은 Google Play 결제 정책을 따르며, 환불은 Google Play 주문내역에서 신청할 수 있습니다.</li>
+        ) : (
+          <>
+            <li>· 구매 후 7일 이내 사용하지 않은 유상 Hair Money는 청약철회(취소)하여 환불받을 수 있습니다.</li>
+            <li>· 환불은 최초 결제하신 결제수단(카드 등)으로만 이루어집니다.</li>
+          </>
+        )}
+        <li>· 충전한 유상 Hair Money의 사용기간(유효기간)은 충전일로부터 {HairMoneyValidityMonths / 12}년입니다.</li>
         <li>· 헤어 추천, 이미지 생성, 투표/상담 등 서비스 이용으로 이미 차감된 Hair Money는 원칙적으로 환불 대상에서 제외됩니다.</li>
         <li>· AI 생성 오류 환불은 자동 처리되지 않으며, 회사 귀책 또는 법령상 환불 사유가 확인되는 경우 접수 후 검토합니다.</li>
-        <li>· 부정 결제, 중복 결제, 미성년자 결제 등은 PortOne 결제 내역과 운영 정책에 따라 별도로 확인합니다.</li>
+        {isApp ? (
+          <li>· 부정 결제, 중복 결제, 미성년자 결제 등은 결제 내역과 운영 정책에 따라 별도로 확인합니다.</li>
+        ) : (
+          <li>· 부정 결제, 중복 결제, 미성년자 결제 등은 카드 결제 내역과 운영 정책에 따라 별도로 확인합니다.</li>
+        )}
       </ul>
+      <p className="mt-3 text-xs leading-5 text-[#8f826f]">
+        자세한 내용은{" "}
+        <Link className="font-semibold text-[#f3d28a] underline" href="/refund">
+          취소·환불·교환 정책
+        </Link>
+        에서 확인하실 수 있습니다.
+      </p>
       <MirilookGenerationRefundNotice className="mt-3" />
     </section>
   );
+}
+
+// 정가 대비 할인율(%)을 소수 첫째 자리까지 표시하되, 정수면 소수점을 생략한다. (예: 16.7, 25)
+function formatDiscountPercent(percent: number) {
+  const rounded = Math.round(percent * 10) / 10;
+  return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1);
 }
 
 function buildWalletStatus(result: HairMoneyWalletResponse) {
@@ -664,8 +846,6 @@ function getCheckoutErrorMessage(reason: string | undefined) {
   switch (reason) {
     case "not_authenticated":
       return "Hair Money 충전은 로그인된 계정에 적립됩니다.";
-    case "portone_not_configured":
-      return "PortOne 상점 ID와 채널 키가 연결되면 실제 결제를 시작할 수 있습니다.";
     case "supabase_not_configured":
       return "Hair Money 저장을 위한 Supabase 연결이 필요합니다.";
     case "supabase_upsert_failed":
@@ -673,20 +853,6 @@ function getCheckoutErrorMessage(reason: string | undefined) {
     default:
       return "결제 정보를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.";
   }
-}
-
-function buildPortOneCustomer(checkout: CheckoutResponse) {
-  const email = checkout.buyer?.email?.trim();
-  const name = checkout.buyer?.name?.trim();
-
-  if (!email && !name) {
-    return undefined;
-  }
-
-  return {
-    email: email || undefined,
-    fullName: name || email || "Miri Look customer",
-  };
 }
 
 function getPaymentClientErrorMessage(error: unknown) {
@@ -728,33 +894,6 @@ function readClientPaymentError(error: unknown) {
   };
 }
 
-function getPaymentCompleteMessage(reason: string | undefined) {
-  switch (reason) {
-    case "not_authenticated":
-      return "결제 결과를 계정에 연결하려면 먼저 로그인해 주세요.";
-    case "payment_order_not_found":
-      return "결제 주문을 찾지 못했습니다. 처음부터 다시 결제를 시도해 주세요.";
-    case "payment_owner_mismatch":
-      return "현재 로그인 계정과 결제 주문 계정이 달라 충전하지 않았습니다.";
-    case "payment_product_mismatch":
-      return "결제 상품 정보가 주문과 달라 충전하지 않았습니다.";
-    case "payment_amount_mismatch":
-    case "portone_amount_mismatch":
-      return "결제 금액이 상품 금액과 달라 Hair Money를 충전하지 않았습니다.";
-    case "payment_currency_mismatch":
-    case "portone_currency_mismatch":
-      return "결제 통화가 KRW가 아니라 Hair Money를 충전하지 않았습니다.";
-    case "portone_payment_not_paid":
-      return "PortOne에서 아직 결제 완료 상태가 확인되지 않았습니다.";
-    case "portone_secret_not_configured":
-      return "PortOne 서버 검증 키가 설정되지 않아 결제를 완료 처리할 수 없습니다.";
-    case "portone_lookup_failed":
-      return "PortOne 결제 조회에 실패했습니다. 잠시 후 다시 확인해 주세요.";
-    default:
-      return "결제 서버 검증에 실패했습니다. 운영자가 결제 내역을 확인해야 합니다.";
-  }
-}
-
 function getLedgerDirectionLabel(direction: HairMoneyLedgerItem["direction"]) {
   switch (direction) {
     case "credit":
@@ -769,8 +908,10 @@ function getLedgerDirectionLabel(direction: HairMoneyLedgerItem["direction"]) {
 }
 
 function getLedgerReasonLabel(item: HairMoneyLedgerItem) {
+  // 결제수단 중립 표기 — 웹(카드)에서 충전한 내역이 앱에도 그대로 보이므로,
+  // 라벨에 결제수단을 적으면 앱 안에서 외부 결제를 노출하는 모양이 된다.
   if (item.reason === "hair_money_purchase") {
-    return "PortOne 결제 충전";
+    return "Hair Money 충전";
   }
 
   if (item.reason === "style_recommendation") {

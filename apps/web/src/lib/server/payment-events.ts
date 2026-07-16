@@ -13,6 +13,9 @@ type PaymentEventInput = {
   paymentId: string;
   profileId?: string | null;
   productId: string;
+  // 결제 경로 구분. 웹 PG 경로는 기존 그대로 portone/inicis 계열로 기록되고,
+  // 안드로이드 인앱결제만 google_play로 남겨 정산 대사를 분리한다.
+  provider?: string | null;
   rawPayload?: unknown;
   status: string;
   verified: boolean;
@@ -45,7 +48,7 @@ export async function recordPaymentEvent(input: PaymentEventInput) {
       payment_id: input.paymentId,
       profile_id: input.profileId ?? null,
       product_id: input.productId,
-      provider: "portone",
+      provider: input.provider ?? "portone",
       raw_payload: input.rawPayload ?? null,
       status: input.status,
       updated_at: timestamp,

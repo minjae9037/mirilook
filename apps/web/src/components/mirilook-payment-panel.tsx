@@ -1,49 +1,96 @@
-﻿"use client";
+"use client";
 
-import * as PortOne from "@portone/browser-sdk/v2";
 import { CreditCard, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useIsMirilookApp } from "@/lib/mirilook-native";
 import { MirilookPaymentProducts } from "@/lib/mirilook-payments";
 import { getSupabaseAccessToken } from "@/lib/supabase-browser";
 
-type CheckoutResponse = {
-  amount?: number;
-  channelKey?: string;
+type InicisPrepareResponse = {
   configured?: boolean;
-  currency?: "KRW";
-  orderName?: string;
-  paymentId?: string;
-  productId?: string;
+  jsUrl?: string;
+  mode?: string;
+  form?: Record<string, string>;
   reason?: string;
-  storeId?: string;
-};
-
-type PaymentCompleteResponse = {
-  actualAmount?: number | null;
-  recorded?: boolean;
-  entitlement?: string;
-  entitlementExpiresAt?: string;
-  reason?: string;
-  recordReason?: string;
-  verified?: boolean;
 };
 
 type MirilookPaymentPanelProps = {
   description?: string;
   initialProductId?: string;
-  onPaymentRecorded?: (result: PaymentCompleteResponse) => void;
+  onPaymentRecorded?: () => void;
   productIds?: string[];
   title?: string;
 };
 
+declare global {
+  interface Window {
+    INIStdPay?: { pay: (formId: string) => void };
+  }
+}
+
+// 이니시스 표준결제 JS(INIStdPay) 로드 — 테스트/운영 URL은 서버가 내려준다.
+function loadInicisScript(src: string) {
+  return new Promise<void>((resolve, reject) => {
+    if (typeof window !== "undefined" && window.INIStdPay) {
+      resolve();
+      return;
+    }
+
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[data-inicis="1"]',
+    );
+    if (existing) {
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () =>
+        reject(new Error("inicis_script_error")),
+      );
+      if (window.INIStdPay) {
+        resolve();
+      }
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.dataset.inicis = "1";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("inicis_script_error"));
+    document.head.appendChild(script);
+  });
+}
+
+// 결제 파라미터를 hidden form에 담아 INIStdPay.pay 호출.
+function submitInicisForm(fields: Record<string, string>) {
+  const FORM_ID = "SendPayForm_id";
+  document.getElementById(FORM_ID)?.remove();
+
+  const form = document.createElement("form");
+  form.id = FORM_ID;
+  form.method = "POST";
+  form.acceptCharset = "UTF-8";
+
+  for (const [name, value] of Object.entries(fields)) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value ?? "";
+    form.appendChild(input);
+  }
+
+  document.body.appendChild(form);
+  window.INIStdPay?.pay(FORM_ID);
+}
+
 export function MirilookPaymentPanel({
-  description = "결제 후 스타일 투표 노출, DM 정책, 상담 공유를 연결하기 위한 PortOne 파일럿 결제 영역입니다.",
+  description = "결제 후 스타일 투표 노출, DM 정책, 상담 공유를 연결하기 위한 KG이니시스 결제 영역입니다.",
   initialProductId,
   onPaymentRecorded,
   productIds,
   title = "유료 투표 / 상담 패키지",
 }: MirilookPaymentPanelProps = {}) {
+  const { isApp } = useIsMirilookApp();
   const availableProducts = useMemo(() => {
     if (!productIds?.length) {
       return MirilookPaymentProducts;
@@ -62,14 +109,49 @@ export function MirilookPaymentPanel({
       ? initialProductId
       : availableProducts[0]?.id ?? "";
 
-  const [selectedProductId, setSelectedProductId] = useState(
-    fallbackProductId,
-  );
+  const [selectedProductId, setSelectedProductId] = useState(fallbackProductId);
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerName, setBuyerName] = useState("");
   const [status, setStatus] = useState("");
   const [needsLogin, setNeedsLogin] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
+
+  // 이니시스 결제창은 전체 페이지를 이동한 뒤 이 페이지로 되돌아온다.
+  // 돌아왔을 때의 ?payment= 결과를 읽어 상태 메시지 + 권한 새로고침을 처리한다.
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    if (!payment) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      if (payment === "success") {
+        setStatus("결제가 확인되었습니다. 구매한 권한이 계정에 적용되었습니다.");
+        onPaymentRecorded?.();
+      } else if (payment === "closed") {
+        setStatus("결제를 취소했습니다.");
+      } else if (payment === "fail") {
+        setStatus("결제가 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.");
+      }
+
+      params.delete("payment");
+      params.delete("reason");
+      params.delete("oid");
+      const query = params.toString();
+      window.history.replaceState(
+        {},
+        "",
+        `${window.location.pathname}${query ? `?${query}` : ""}`,
+      );
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [onPaymentRecorded]);
 
   const effectiveSelectedProductId = availableProducts.some(
     (product) => product.id === selectedProductId,
@@ -79,8 +161,7 @@ export function MirilookPaymentPanel({
   const selectedProduct =
     availableProducts.find(
       (product) => product.id === effectiveSelectedProductId,
-    ) ??
-    availableProducts[0];
+    ) ?? availableProducts[0];
 
   async function startPayment() {
     if (!selectedProduct) {
@@ -100,11 +181,13 @@ export function MirilookPaymentPanel({
         return;
       }
 
-      const response = await fetch("/api/payments/checkout/", {
+      const response = await fetch("/api/payments/inicis/prepare/", {
         body: JSON.stringify({
           buyerEmail,
           buyerName,
           productId: selectedProduct.id,
+          redirectPath:
+            typeof window !== "undefined" ? window.location.pathname : undefined,
         }),
         headers: {
           Authorization: `Bearer ${token}`,
@@ -113,14 +196,21 @@ export function MirilookPaymentPanel({
         method: "POST",
       });
 
-      const checkout = (await response.json().catch(() => ({
+      const prepare = (await response.json().catch(() => ({
         reason: `server_${response.status}`,
-      }))) as CheckoutResponse;
+      }))) as InicisPrepareResponse;
 
       if (!response.ok) {
-        if (checkout.reason === "not_authenticated") {
+        if (prepare.reason === "not_authenticated") {
           setNeedsLogin(true);
           setStatus("결제 권한을 계정에 연결하려면 먼저 로그인해 주세요.");
+          return;
+        }
+
+        if (prepare.reason === "supabase_not_configured") {
+          setStatus(
+            "결제 서버 저장소가 아직 연결되지 않았습니다. 잠시 후 다시 시도해 주세요.",
+          );
           return;
         }
 
@@ -128,81 +218,14 @@ export function MirilookPaymentPanel({
         return;
       }
 
-      if (!checkout.configured) {
-        setStatus(
-          "PortOne 전용 상점과 채널 키가 연결되면 실제 결제를 시작할 수 있습니다.",
-        );
-        return;
-      }
-
-      if (
-        !checkout.storeId ||
-        !checkout.channelKey ||
-        !checkout.paymentId ||
-        !checkout.orderName ||
-        !checkout.amount
-      ) {
+      if (!prepare.configured || !prepare.jsUrl || !prepare.form) {
         setStatus("결제 요청 정보가 완전하지 않습니다.");
         return;
       }
 
-      const payment = await PortOne.requestPayment({
-        channelKey: checkout.channelKey,
-        currency: checkout.currency ?? "KRW",
-        orderName: checkout.orderName,
-        payMethod: "CARD",
-        paymentId: checkout.paymentId,
-        storeId: checkout.storeId,
-        totalAmount: checkout.amount,
-      });
-
-      if (!payment) {
-        setStatus("결제창이 닫혔습니다.");
-        return;
-      }
-
-      if ("code" in payment) {
-        setStatus(payment.message || "결제가 완료되지 않았습니다.");
-        return;
-      }
-
-      const completeResponse = await fetch("/api/payments/complete/", {
-        body: JSON.stringify({
-          amount: checkout.amount,
-          paymentId: checkout.paymentId,
-          productId: checkout.productId,
-          status: payment.transactionType ?? "paid",
-        }),
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-      });
-
-      const completeResult =
-        (await completeResponse.json().catch(() => null)) as
-          | PaymentCompleteResponse
-          | null;
-
-      if (!completeResponse.ok || !completeResult?.verified) {
-        if (completeResult?.reason === "not_authenticated") {
-          setNeedsLogin(true);
-        }
-
-        setStatus(getPaymentCompleteMessage(completeResult?.reason));
-        return;
-      }
-
-      if (!completeResult.recorded) {
-        setStatus(
-          "결제는 확인되었습니다. 다만 서버 저장소 연결 전이라 운영자가 PortOne 결제 내역으로 확인합니다.",
-        );
-        return;
-      }
-
-      setStatus(getPaymentSuccessMessage(completeResult, selectedProduct.name));
-      onPaymentRecorded?.(completeResult);
+      setStatus("결제창으로 이동합니다. 완료 후 이 페이지로 돌아옵니다.");
+      await loadInicisScript(prepare.jsUrl);
+      submitInicisForm(prepare.form);
     } catch (error) {
       console.error(error);
       setStatus("결제 처리 중 오류가 발생했습니다.");
@@ -211,15 +234,20 @@ export function MirilookPaymentPanel({
     }
   }
 
+  // v1: 네이티브 앱에서는 엔타이틀먼트 상품을 팔지 않는다(이 패널은 이니시스 결제 흐름).
+  // "웹에서 구매하세요" 같은 대체 안내를 넣으면 그 자체가 외부 결제 유도(안티-스티어링
+  // 위반)이므로, 아무 문구 없이 섹션을 통째로 제거하는 것이 정답이다.
+  if (isApp) {
+    return null;
+  }
+
   return (
     <section className="rounded-md border border-[#2b281f] bg-[#171511]/92 p-4">
       <div className="flex items-center gap-2">
         <CreditCard aria-hidden="true" className="text-[#f3d28a]" size={18} />
         <h2 className="text-lg font-semibold text-[#fffaf1]">{title}</h2>
       </div>
-      <p className="mt-2 text-sm leading-6 text-[#b8aa95]">
-        {description}
-      </p>
+      <p className="mt-2 text-sm leading-6 text-[#b8aa95]">{description}</p>
 
       <div className="mt-4 grid gap-3">
         {availableProducts.map((product) => {
@@ -293,7 +321,7 @@ export function MirilookPaymentPanel({
         ) : (
           <CreditCard aria-hidden="true" size={16} />
         )}
-        PortOne 결제 테스트
+        카드 결제 (KG이니시스)
       </button>
 
       {status ? (
@@ -311,56 +339,4 @@ export function MirilookPaymentPanel({
       ) : null}
     </section>
   );
-}
-
-function getPaymentSuccessMessage(
-  result: PaymentCompleteResponse,
-  productName: string,
-) {
-  if (result.entitlement === "premium_addons") {
-    return result.entitlementExpiresAt
-      ? `${productName} 결제가 확인되었습니다. ${formatDate(result.entitlementExpiresAt)}까지 코디/메이크업 확장 상담 권한이 활성화됩니다.`
-      : `${productName} 결제가 확인되었습니다. 코디/메이크업 확장 상담 권한이 활성화됩니다.`;
-  }
-
-  if (result.entitlement === "vote_boost") {
-    return "결제가 확인되었습니다. 투표 노출과 알림 준비가 시작됩니다.";
-  }
-
-  if (result.entitlement === "salon_pack") {
-    return "결제가 확인되었습니다. 상담 보드 저장, 공유, 예약 문의 패키지 권한이 활성화됩니다.";
-  }
-
-  return "결제가 확인되었습니다.";
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("ko-KR", {
-    dateStyle: "medium",
-  }).format(date);
-}
-
-function getPaymentCompleteMessage(reason: string | undefined) {
-  switch (reason) {
-    case "not_authenticated":
-      return "결제 권한을 계정에 연결하려면 먼저 로그인해 주세요.";
-    case "portone_amount_mismatch":
-      return "결제 금액이 상품 금액과 달라 완료 처리하지 않았습니다.";
-    case "portone_currency_mismatch":
-      return "결제 통화가 KRW가 아니라 완료 처리하지 않았습니다.";
-    case "portone_payment_not_paid":
-      return "PortOne에서 아직 결제 완료 상태가 확인되지 않았습니다.";
-    case "portone_secret_not_configured":
-      return "PortOne 서버 검증 키가 설정되지 않아 결제를 완료 처리할 수 없습니다.";
-    case "portone_lookup_failed":
-      return "PortOne 결제 조회에 실패했습니다. 잠시 후 다시 확인해 주세요.";
-    default:
-      return "결제 서버 검증에 실패했습니다. 운영자가 결제 내역을 확인해야 합니다.";
-  }
 }

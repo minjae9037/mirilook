@@ -58,12 +58,16 @@ export type HairMoneyWallet =
       ledger: HairMoneyLedgerItem[];
       recommendationCost: number;
       synced: true;
+      totalPurchased: number;
+      totalSpent: number;
     }
   | {
       balance: 0;
       reason: "supabase_not_configured" | "supabase_wallet_lookup_failed";
       recommendationCost: number;
       synced: false;
+      totalPurchased: 0;
+      totalSpent: 0;
     };
 
 export async function getHairMoneyWallet(profileId: string): Promise<HairMoneyWallet> {
@@ -75,12 +79,14 @@ export async function getHairMoneyWallet(profileId: string): Promise<HairMoneyWa
       reason: "supabase_not_configured",
       recommendationCost: HairMoneyRecommendationCost,
       synced: false,
+      totalPurchased: 0,
+      totalSpent: 0,
     };
   }
 
   const result = await supabase
     .from("hair_money_accounts")
-    .select("balance")
+    .select("balance, total_purchased, total_spent")
     .eq("profile_id", profileId)
     .maybeSingle();
   const ledgerResult = await supabase
@@ -102,6 +108,8 @@ export async function getHairMoneyWallet(profileId: string): Promise<HairMoneyWa
       reason: "supabase_wallet_lookup_failed",
       recommendationCost: HairMoneyRecommendationCost,
       synced: false,
+      totalPurchased: 0,
+      totalSpent: 0,
     };
   }
 
@@ -110,6 +118,8 @@ export async function getHairMoneyWallet(profileId: string): Promise<HairMoneyWa
     ledger: (ledgerResult.data ?? []).map(mapLedgerRow),
     recommendationCost: HairMoneyRecommendationCost,
     synced: true,
+    totalPurchased: Number(result.data?.total_purchased ?? 0),
+    totalSpent: Number(result.data?.total_spent ?? 0),
   };
 }
 
@@ -117,10 +127,14 @@ export async function creditHairMoneyForPayment({
   paymentId,
   product,
   profileId,
+  gateway = "inicis",
 }: {
   paymentId: string;
   product: MirilookPaymentProduct;
   profileId: string | null | undefined;
+  // 결제 경로 구분 — 원장(ledger) source_type 네임스페이스/정산 추적용. 기본은 현재 활성 PG인 이니시스.
+  // google_play는 안드로이드 앱 인앱결제(RevenueCat 경유) — 멱등 키는 Play 트랜잭션 id.
+  gateway?: "google_play" | "inicis" | "portone";
 }): Promise<HairMoneyRpcResult | null> {
   if (product.productKind !== "hair_money" || !product.hairMoneyAmount) {
     return null;
@@ -141,12 +155,13 @@ export async function creditHairMoneyForPayment({
       paymentId,
       productId: product.id,
       productName: product.name,
-      pricingBasis: "hair_money_500_krw",
+      pricingBasis: "hair_money_550_krw_vat_included",
+      gateway,
     },
     p_profile_id: profileId,
     p_reason: "hair_money_purchase",
     p_source_id: paymentId,
-    p_source_type: "portone_payment",
+    p_source_type: `${gateway}_payment`,
   });
 }
 
