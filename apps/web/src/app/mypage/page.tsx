@@ -1,3 +1,4 @@
+import { MirilookAccountDeletion } from "@/components/mirilook-account-deletion";
 import { MirilookHistoryManager } from "@/components/mirilook-history-manager";
 import { MirilookLogoutButton } from "@/components/mirilook-logout-button";
 import { MirilookMainNav } from "@/components/mirilook-main-nav";
@@ -26,6 +27,7 @@ export default function MyPage() {
           <MirilookProfilePanel />
           <MirilookPasswordSettings />
           <MirilookHistoryManager />
+          <MirilookAccountDeletion />
         </div>
       </section>
     </main>

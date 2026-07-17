@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "개인정보처리방침",
@@ -92,10 +93,12 @@ export default function PrivacyPage() {
         <p>
           서비스 운영을 위해 회사는 클라우드, 인증, 데이터베이스, 이메일,
           결제, 자동화, AI 이미지 생성 사업자에게 업무를 위탁할 수 있습니다.
-          현재 또는 예정된 주요 처리 수탁자는 Supabase, Vercel, OpenAI,
-          Resend, Trigger.dev, 그리고 결제대행사인 KG이니시스(주식회사 케이지이니시스)입니다. 일부
-          사업자는 국외에 서버를 둘 수 있으며, 회사는 실제 도입 시 서비스 내
-          고지 또는 본 방침 개정을 통해 세부 항목을 안내합니다.
+          현재 또는 예정된 주요 처리 수탁자는 Supabase(데이터베이스·인증·저장소),
+          Vercel(호스팅·분석), OpenAI 및 Google(Gemini)(AI 이미지 생성),
+          Resend(이메일 발송), Sentry(오류 진단), Trigger.dev(자동화),
+          RevenueCat 및 Google Play(앱 내 결제), 그리고 결제대행사인 KG이니시스(주식회사
+          케이지이니시스)입니다. 일부 사업자는 국외에 서버를 둘 수 있으며, 회사는 실제 도입 시
+          서비스 내 고지 또는 본 방침 개정을 통해 세부 항목을 안내합니다.
         </p>
       </section>
 
@@ -106,6 +109,18 @@ export default function PrivacyPage() {
           요청할 수 있습니다. 서비스 내 마이페이지에서 일부 정보를 직접 수정할
           수 있으며, 직접 처리가 어려운 요청은 jipsa.admin@gmail.com으로 접수할 수
           있습니다.
+        </p>
+        <p>
+          <b className="text-[#fffaf1]">계정 삭제</b>는 로그인 후{" "}
+          <Link className="font-semibold text-[#f3d28a] underline" href="/mypage">
+            마이페이지
+          </Link>
+          의 “계정 삭제” 메뉴에서 직접 하실 수 있습니다. 삭제 시 계정 정보, 프로필,
+          업로드한 얼굴 사진, 상담 결과와 생성 이미지가 삭제됩니다. 커뮤니티 게시글과
+          댓글은 작성자 식별정보가 제거된 익명 상태로 남을 수 있고, 결제·환불 기록은
+          법령상 보관 의무가 있는 범위에서 보존됩니다. 보유한 Hair Money는 함께
+          소멸되며 환불되지 않습니다. 직접 삭제가 어려운 경우 jipsa.admin@gmail.com으로
+          요청하실 수 있습니다.
         </p>
       </section>
 
