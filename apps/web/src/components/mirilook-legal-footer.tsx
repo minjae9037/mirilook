@@ -1,10 +1,14 @@
 import Link from "next/link";
+import { MirilookContactDialog } from "@/components/mirilook-contact-dialog";
 
 const legalLinks = [
   { href: "/company", label: "회사소개" },
   { href: "/terms", label: "이용약관" },
   { href: "/privacy", label: "개인정보처리방침" },
-  { href: "/refund", label: "환불정책" },
+  { href: "/refund", label: "취소·환불·교환" },
+  // Google Play 데이터 보안에 "계정 URL 삭제"로 제출하는 공개 페이지.
+  // 로그인 없이 열려야 해서 /mypage가 아니라 이 안내 페이지를 쓴다.
+  { href: "/account-deletion", label: "계정·데이터 삭제" },
 ];
 
 export function MirilookLegalFooter() {
@@ -40,6 +44,7 @@ export function MirilookLegalFooter() {
               {item.label}
             </Link>
           ))}
+          <MirilookContactDialog />
         </nav>
       </div>
     </footer>
