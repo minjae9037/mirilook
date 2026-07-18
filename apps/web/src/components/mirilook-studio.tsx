@@ -35,6 +35,7 @@ import {
   Link,
   Loader2,
   Mail,
+  Maximize2,
   RefreshCw,
   ScanFace,
   Search,
@@ -83,16 +84,13 @@ import {
   HairMoneyRecommendationPriceKrw,
 } from "@/lib/mirilook-payments";
 import {
-  getPrintableReportStatus,
-  openPrintableHtmlReport,
-} from "@/lib/printable-report";
-import {
   enqueueBackgroundJob,
   fetchBackgroundStatus,
   isBackgroundGenerationEnabled,
   prepareBackgroundSession,
 } from "@/lib/mirilook-background";
 import { trackEvent } from "@/lib/mirilook-analytics";
+import { MirilookColorWheel } from "@/components/mirilook-color-wheel";
 import { MirilookGenerationRefundNotice } from "@/components/mirilook-generation-refund-notice";
 import { MirilookHairMoneyStore } from "@/components/mirilook-hair-money-store";
 import { MirilookPaymentPanel } from "@/components/mirilook-payment-panel";
@@ -830,9 +828,21 @@ export function MirilookStudio() {
   );
   const [selectedHairColorId, setSelectedHairColorId] =
     useState("natural-black");
+  // 직접 고르기(색상 휠)로 고른 임의 색. 설정되면 프리셋 대신 이 색을 헤어 컬러로 사용.
+  const [customHairColorHex, setCustomHairColorHex] = useState<string | null>(null);
+  const [colorMode, setColorMode] = useState<"palette" | "custom">("custom");
+  // 스타일 투표 게시 모달 상태.
+  const [voteModalOpen, setVoteModalOpen] = useState(false);
+  const [voteAudience, setVoteAudience] = useState<"all" | "opposite">("all");
+  const [voteDmAllow, setVoteDmAllow] = useState(false);
+  const [votePosting, setVotePosting] = useState(false);
+  const [voteStatus, setVoteStatus] = useState("");
   const [selectedStyleId, setSelectedStyleId] = useState<MirilookStyleId | null>(
     null,
   );
+  // 추천 카드에서 사진을 누르면 크게 보기(설명 포함) — 선택과는 분리된 상태.
+  const [enlargedRecommendationId, setEnlargedRecommendationId] =
+    useState<MirilookStyleId | null>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [renderedResults, setRenderedResults] = useState<RenderedResult[]>([]);
   // One recommendation cycle includes the first consultation set for free.
@@ -947,8 +957,15 @@ export function MirilookStudio() {
     Boolean(result.imageUrl),
   ).length;
   const selectedHairColor =
-    hairColorChoices.find((color) => color.id === selectedHairColorId) ??
-    hairColorChoices[0];
+    customHairColorHex
+      ? {
+          id: "custom",
+          name: `직접 선택 (${customHairColorHex.toUpperCase()})`,
+          swatch: customHairColorHex,
+          prompt: buildCustomHairColorPrompt(customHairColorHex),
+        }
+      : hairColorChoices.find((color) => color.id === selectedHairColorId) ??
+        hairColorChoices[0];
   const audienceStyles = useMemo(
     () => getStylesByAudience(selectedAudience),
     [selectedAudience],
@@ -2230,6 +2247,8 @@ export function MirilookStudio() {
 
   function selectHairColor(colorId: string) {
     setSelectedHairColorId(colorId);
+    setCustomHairColorHex(null);
+    setColorMode("palette");
     setAnalysisReady(false);
     setSelectedStyleId(null);
     setRenderedResults([]);
@@ -2262,6 +2281,56 @@ export function MirilookStudio() {
     setStatusMessage(
       "퍼스널 컨설팅 항목이 반영되었습니다. 추천 받기를 눌러주세요.",
     );
+  }
+
+  // 선택한 추천 스타일을 투표글로 게시(2 HM 차감). 이미지는 base64로 변환해 전송.
+  async function postStyleVote() {
+    const style = selectedStyle;
+    if (!style?.imageUrl || votePosting) return;
+    setVotePosting(true);
+    setVoteStatus("");
+    try {
+      const token = await getSupabaseAccessToken();
+      if (!token) {
+        setVoteStatus("투표를 올리려면 로그인해 주세요.");
+        return;
+      }
+      const imageDataUrl = await imageUrlToDataUrl(style.imageUrl);
+      const response = await fetch("/api/community/vote-posts/", {
+        body: JSON.stringify({
+          audience: voteAudience,
+          dmPolicy: voteDmAllow ? "allow" : "deny",
+          hairColorName: selectedHairColor.name,
+          imageDataUrl,
+          requesterGender: selectedAudience,
+          styleName: style.name,
+        }),
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+      const data = (await response.json()) as {
+        accepted?: boolean;
+        reason?: string;
+      };
+      if (!response.ok || !data.accepted) {
+        setVoteStatus(
+          data.reason === "insufficient_balance"
+            ? "Hair Money가 부족해요. 스토어에서 충전 후 다시 시도해 주세요."
+            : "투표 게시에 실패했어요. 잠시 후 다시 시도해 주세요.",
+        );
+        return;
+      }
+      setVoteStatus(
+        "투표가 올라갔어요! 스타일 투표와 커뮤니티에서 확인할 수 있어요.",
+      );
+    } catch {
+      setVoteStatus("투표 게시 중 오류가 발생했어요.");
+    } finally {
+      setVotePosting(false);
+    }
   }
 
   function selectRecommendationMode(mode: RecommendationModeId) {
@@ -4152,11 +4221,25 @@ export function MirilookStudio() {
     const item = await buildCurrentHistoryItem();
 
     if (!item) {
-      setHistoryStatus("PDF로 저장할 상담 이미지가 아직 없습니다.");
+      setHistoryStatus("저장할 상담 이미지가 아직 없습니다.");
       return;
     }
 
-    setHistoryStatus(getPrintableReportStatus(openPrintableReport(item)));
+    setHistoryStatus("결과지를 저장하는 중입니다...");
+    try {
+      await saveConsultationReportImage(
+        item,
+        `mirilook-결과지-${item.styleName}.jpg`,
+      );
+      setHistoryStatus(
+        "결과지 이미지를 저장했습니다. 공유 시트에서 갤러리에 저장하거나 미용사에게 바로 보낼 수 있어요.",
+      );
+    } catch (error) {
+      console.error("consultation report save failed", error);
+      setHistoryStatus(
+        "결과지 저장에 실패했습니다. 잠시 후 다시 시도하거나 개별 이미지 저장을 이용해 주세요.",
+      );
+    }
   }
 
   function updateRenderedResult(
@@ -4603,10 +4686,51 @@ export function MirilookStudio() {
 
       {flowStep === "color" && hasAnyPhoto ? (
         <div className="mt-5 grid gap-5">
-          <HairColorPanel
-            onSelect={selectHairColor}
-            selectedColorId={selectedHairColorId}
-          />
+          {/* 색상 선택 방식 토글 — 좌: 직접 고르기(색상 휠) / 우: 팔레트 */}
+          <div className="flex rounded-full border border-[#2b281f] bg-[#0f0e0c] p-1">
+            <button
+              className={`flex-1 rounded-full px-4 py-2 transition ${
+                colorMode === "custom"
+                  ? "bg-[#f3d28a] text-[#171511]"
+                  : "text-[#b8aa95]"
+              }`}
+              onClick={() => setColorMode("custom")}
+              style={{ fontSize: 14, fontWeight: 700 }}
+              type="button"
+            >
+              직접 고르기
+            </button>
+            <button
+              className={`flex-1 rounded-full px-4 py-2 transition ${
+                colorMode === "palette"
+                  ? "bg-[#f3d28a] text-[#171511]"
+                  : "text-[#b8aa95]"
+              }`}
+              onClick={() => setColorMode("palette")}
+              style={{ fontSize: 14, fontWeight: 700 }}
+              type="button"
+            >
+              팔레트에서 고르기
+            </button>
+          </div>
+
+          {colorMode === "custom" ? (
+            <div className="rounded-md border border-[#2b281f] bg-[#171511]/92 p-4">
+              <p className="mb-4 text-sm leading-6 text-[#b8aa95]">
+                휠을 마우스나 손으로 움직여 원하는 색을 고르세요. 고른 색이 헤어
+                컬러로 반영됩니다.
+              </p>
+              <MirilookColorWheel
+                onChange={(hex) => setCustomHairColorHex(hex)}
+                value={customHairColorHex ?? "#a06a3f"}
+              />
+            </div>
+          ) : (
+            <HairColorPanel
+              onSelect={selectHairColor}
+              selectedColorId={selectedHairColorId}
+            />
+          )}
           {showPersonalConsultPanel ? (
             <PersonalConsultPanel
               selectedFocusIds={consultingFocusIds}
@@ -4768,7 +4892,7 @@ export function MirilookStudio() {
       ) : null}
 
       {flowStep === "recommend" && analysisReady && frontPhoto && sidePhoto ? (
-        <div className="mt-5 grid gap-5 border-t border-white/10 pt-5">
+        <div className="mt-5 grid min-w-0 grid-cols-1 gap-5 border-t border-white/10 pt-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-xl font-semibold text-[#fffaf1]">추천 스타일 9장</h3>
@@ -4795,17 +4919,161 @@ export function MirilookStudio() {
               {isSavingGrid ? "저장 중" : "3x3 한 장 저장"}
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
+          <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
             {recommendations.map((style) => (
               <StyleCard
                 active={style.id === selectedStyleId}
                 frontPhoto={frontPhoto}
                 key={style.id}
+                onEnlarge={() => setEnlargedRecommendationId(style.id)}
                 onSelect={() => previewStyle(style)}
                 style={style}
               />
             ))}
           </div>
+
+          {enlargedRecommendationId
+            ? (() => {
+                const enlarged = recommendations.find(
+                  (style) => style.id === enlargedRecommendationId,
+                );
+                if (!enlarged) return null;
+                return (
+                  <RecommendationDetailDialog
+                    active={enlarged.id === selectedStyleId}
+                    frontPhoto={frontPhoto}
+                    onClose={() => setEnlargedRecommendationId(null)}
+                    onSelect={() => {
+                      previewStyle(enlarged);
+                      setEnlargedRecommendationId(null);
+                    }}
+                    style={enlarged}
+                  />
+                );
+              })()
+            : null}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#f3d28a]/45 bg-[#30271a]/70 px-4 text-sm font-bold text-[#f3d28a] transition hover:bg-[#3a2e18] disabled:cursor-not-allowed disabled:border-white/10 disabled:text-[#8f826f]"
+              disabled={!selectedStyle?.imageUrl}
+              onClick={() => {
+                setVoteStatus("");
+                setVoteModalOpen(true);
+              }}
+              type="button"
+            >
+              이 스타일 투표 올리기
+            </button>
+            <span className="text-xs leading-5 text-[#8f826f]">
+              2 Hair Money · 다른 회원이 좋아요/싫어요로 투표해요
+            </span>
+          </div>
+
+          {voteModalOpen ? (
+            <div
+              className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4"
+              onClick={() => setVoteModalOpen(false)}
+            >
+              <div
+                className="w-full max-w-sm rounded-2xl border border-[#2b281f] bg-[#171511] p-5 shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-bold text-[#fffaf1]">
+                    투표 올리기
+                  </h3>
+                  <button
+                    aria-label="닫기"
+                    className="grid size-8 place-items-center rounded-full text-[#8f826f] transition hover:text-[#f3d28a]"
+                    onClick={() => setVoteModalOpen(false)}
+                    type="button"
+                  >
+                    <X aria-hidden="true" size={18} />
+                  </button>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-[#b8aa95]">
+                  선택한 스타일을 올리고 다른 회원의 좋아요/싫어요를 받아요.
+                  게시에 <b className="text-[#f3d28a]">2 Hair Money</b>가 들어요.
+                </p>
+
+                <p className="mt-4 text-xs font-semibold text-[#b8aa95]">
+                  투표 범위
+                </p>
+                <div className="mt-2 flex rounded-full border border-[#2b281f] bg-[#0f0e0c] p-1">
+                  <button
+                    className={`flex-1 rounded-full px-3 py-2 transition ${
+                      voteAudience === "all"
+                        ? "bg-[#f3d28a] text-[#171511]"
+                        : "text-[#b8aa95]"
+                    }`}
+                    onClick={() => setVoteAudience("all")}
+                    style={{ fontSize: 13, fontWeight: 700 }}
+                    type="button"
+                  >
+                    전체 공개
+                  </button>
+                  <button
+                    className={`flex-1 rounded-full px-3 py-2 transition ${
+                      voteAudience === "opposite"
+                        ? "bg-[#f3d28a] text-[#171511]"
+                        : "text-[#b8aa95]"
+                    }`}
+                    onClick={() => setVoteAudience("opposite")}
+                    style={{ fontSize: 13, fontWeight: 700 }}
+                    type="button"
+                  >
+                    이성만
+                  </button>
+                </div>
+
+                <button
+                  className="mt-4 flex w-full items-center justify-between rounded-md border border-white/10 bg-[#0f0e0c] px-3 py-3"
+                  onClick={() => setVoteDmAllow((current) => !current)}
+                  type="button"
+                >
+                  <span className="text-sm font-semibold text-[#d8cbb8]">
+                    DM 허용
+                  </span>
+                  <span
+                    className="relative inline-flex h-6 w-11 items-center rounded-full transition"
+                    style={{ background: voteDmAllow ? "#ea4a7c" : "#3a352c" }}
+                  >
+                    <span
+                      className="size-5 rounded-full bg-white shadow transition-transform"
+                      style={{
+                        transform: voteDmAllow
+                          ? "translateX(22px)"
+                          : "translateX(2px)",
+                      }}
+                    />
+                  </span>
+                </button>
+
+                {voteStatus ? (
+                  <p className="mt-3 rounded-md border border-[#f3d28a]/25 bg-[#2b2112] px-3 py-2 text-sm leading-6 text-[#f3d28a]">
+                    {voteStatus}
+                  </p>
+                ) : null}
+
+                <button
+                  className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md bg-[#f3d28a] px-3 text-sm font-bold text-[#171511] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:opacity-55"
+                  disabled={votePosting}
+                  onClick={() => void postStyleVote()}
+                  type="button"
+                >
+                  {votePosting ? (
+                    <Loader2
+                      aria-hidden="true"
+                      className="animate-spin"
+                      size={16}
+                    />
+                  ) : null}
+                  2 Hair Money로 투표 올리기
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <section className="rounded-md border border-[#2b281f] bg-[#0f0e0c]/82 p-4">
             <div className="mb-3 flex items-center gap-2">
@@ -4869,7 +5137,7 @@ export function MirilookStudio() {
             outfitRecommendations={outfitRecommendations}
             selectedStyle={selectedStyle}
           />
-          <div className="mt-4 grid gap-4 rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4">
+          <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4">
             {!renderedResults.length ? (
               <div className="flex justify-center">
                 <button
@@ -4949,9 +5217,9 @@ export function MirilookStudio() {
       ) : null}
 
       {flowStep === "consult" && selectedStyle && renderedResults.length ? (
-        <div className="mt-5 grid gap-4 border-t border-white/10 pt-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
+        <div className="mt-5 grid min-w-0 grid-cols-1 gap-4 border-t border-white/10 pt-5">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <h3 className="text-xl font-semibold text-[#fffaf1]">
                 {selectedStyle.name} 상담용 9장
               </h3>
@@ -5024,7 +5292,7 @@ export function MirilookStudio() {
               </button>
             </div>
           ) : null}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3">
             {renderedResults.map((result, index) => (
               <ResultCard
                 isMirrored={mirroredResultLabels.has(result.label)}
@@ -5071,8 +5339,8 @@ export function MirilookStudio() {
               </button>
             </div>
           ) : null}
-          <div className="grid gap-4 rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
-            <div>
+          <div className="grid min-w-0 grid-cols-1 gap-4 rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
+            <div className="min-w-0">
               <p className="text-sm font-semibold text-[#fffaf1]">
                 결과 저장
               </p>
@@ -5080,7 +5348,7 @@ export function MirilookStudio() {
                 현재 브라우저에 상담 기록을 남기고, PDF 저장 또는 이메일 전송으로 미용사에게 공유할 수 있습니다.
               </p>
             </div>
-            <div className="grid gap-3">
+            <div className="grid min-w-0 grid-cols-1 gap-3">
               <div className="flex flex-wrap gap-2">
                 <button
                   className="inline-flex h-10 items-center gap-2 rounded-md bg-[#f3d28a] px-3 text-sm font-bold text-[#1a1712] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:bg-[#6b5b36] disabled:text-[#d8cbb8]"
@@ -5103,7 +5371,7 @@ export function MirilookStudio() {
                   type="button"
                 >
                   <Download aria-hidden="true" size={16} />
-                  PDF로 저장
+                  결과지 저장
                 </button>
                 <button
                   className="inline-flex h-10 items-center gap-2 rounded-md border border-[#c9a96a]/50 px-3 text-sm font-semibold text-[#f3d28a] transition hover:bg-[#f3d28a]/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-[#8f826f]"
@@ -5187,7 +5455,12 @@ export function MirilookStudio() {
       {(flowStep === "consult" || flowStep === "outfit") && historyItems.length ? (
         <HistoryPanel
           items={historyItems}
-          onPrint={openPrintableReport}
+          onPrint={(item) =>
+            void saveConsultationReportImage(
+              item,
+              `mirilook-결과지-${item.styleName}.jpg`,
+            )
+          }
         />
       ) : null}
     </section>
@@ -6131,7 +6404,7 @@ function StyleExpansionResultPanel({
   const bottomOutfitItems = outfitRecommendations.slice(5, 8);
 
   return (
-    <section className="mt-5 grid gap-4 border-t border-white/10 pt-5">
+    <section className="mt-5 grid min-w-0 grid-cols-1 gap-4 border-t border-white/10 pt-5">
       {outfitRecommendations.length ? (
         <div className="rounded-md border border-[#2b281f] bg-[#0f0e0c]/82 p-4">
           <div className="flex items-center justify-between gap-3">
@@ -7275,7 +7548,7 @@ function HistoryPanel({
               type="button"
             >
               <Download aria-hidden="true" size={16} />
-              PDF
+              결과지
             </button>
           </article>
         ))}
@@ -7795,6 +8068,18 @@ function getHairColorButtonStyle(color: HairColorChoice, selected: boolean) {
   };
 }
 
+// 이미지 URL(원격/data)을 base64 data URL로 변환 — 투표 게시 전송용.
+async function imageUrlToDataUrl(url: string): Promise<string> {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("image_read_failed"));
+    reader.readAsDataURL(blob);
+  });
+}
+
 function parseHexColor(hex: string) {
   const match = hex.trim().match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
 
@@ -7970,11 +8255,13 @@ function HairColorPanel({
 function StyleCard({
   active,
   frontPhoto,
+  onEnlarge,
   onSelect,
   style,
 }: {
   active: boolean;
   frontPhoto: UploadedPhoto;
+  onEnlarge: () => void;
   onSelect: () => void;
   style: DisplayRecommendation;
 }) {
@@ -7984,119 +8271,197 @@ function StyleCard({
     isGenerating: style.isGenerating,
     progress: style.generationProgress,
   });
+  const canInteract = Boolean(imageUrl) && !style.error;
 
   return (
     <article
-      aria-label={`${style.name} 추천 스타일 선택`}
-      aria-pressed={active}
-      className={`overflow-hidden rounded-md border text-left transition ${
+      className={`flex min-w-0 flex-col overflow-hidden rounded-md border text-left transition ${
         active
           ? "border-[#f3d28a] bg-[#30271a] text-[#fffaf1]"
-          : "border-white/12 bg-[#0f0e0c]/72 text-[#e7dccb] hover:border-[#c9a96a]/55"
+          : "border-white/12 bg-[#0f0e0c]/72 text-[#e7dccb]"
       }`}
-      onClick={onSelect}
-      onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) {
-          return;
-        }
-
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onSelect();
-        }
-      }}
-      role="button"
-      tabIndex={0}
     >
-      <div className="relative aspect-square overflow-hidden">
+      {/* 사진: 누르면 크게 보기(설명 포함). 얼굴을 가리는 오버레이/제목은 아래로 뺀다. */}
+      <button
+        aria-label={`${style.name} 크게 보기`}
+        className="relative block aspect-square w-full overflow-hidden"
+        onClick={canInteract ? onEnlarge : undefined}
+        type="button"
+      >
         {imageUrl ? (
           <img
             alt={`${style.name} 디자인 미리보기`}
-            className={`h-full w-full object-cover opacity-92 ${style.cropClass}`}
+            className={`h-full w-full object-cover ${style.cropClass}`}
             src={imageUrl}
           />
         ) : (
-          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-4 bg-[#15130f] px-4 text-center">
-            {style.isGenerating ? (
-              <NeonSpinner size={58} />
-            ) : null}
+          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-3 bg-[#15130f] px-2 text-center">
+            {style.isGenerating ? <NeonSpinner size={48} /> : null}
             {style.error ? (
-              <span className="text-xl font-bold text-[#fffaf1]">생성 실패</span>
+              <span className="text-base font-bold text-[#fffaf1]">생성 실패</span>
             ) : (
-              <span className="text-2xl font-black tabular-nums leading-none text-[#fffaf1] sm:text-4xl">
+              <span className="text-2xl font-black tabular-nums leading-none text-[#fffaf1] sm:text-3xl">
                 {progress ?? 0}%
               </span>
             )}
             {progress !== undefined && !style.error ? (
               <GenerationProgressBar progress={progress} />
             ) : null}
-            <span className="text-xs font-semibold text-[#b8aa95] sm:text-sm">
-              {style.error ? "자동 재시도 후 확인 필요" : "AI 합성 중"}
+            <span className="text-[11px] font-semibold text-[#b8aa95] sm:text-xs">
+              {style.error ? "다시 시도 필요" : "AI 합성 중"}
             </span>
-            {style.error ? (
-              <span className="max-w-52 text-xs leading-5 text-[#d8cbb8]">
-                {getShortGenerationError(style.error)}
-              </span>
-            ) : null}
           </div>
         )}
-        <div
-          className={`absolute inset-0 bg-gradient-to-b ${style.accent} via-transparent to-[#0f0e0c]/86`}
-        />
-        <div className="absolute right-3 top-3 z-30 flex flex-col items-end gap-2">
-          {active && !style.isGenerating && !style.error ? (
-            <span className="flex size-8 items-center justify-center rounded-full bg-[#f3d28a] text-[#1a1712]">
-              <Check aria-hidden="true" size={17} />
-            </span>
-          ) : null}
-          {style.error ? (
-            <span className="rounded-md bg-[#11100e]/85 px-2 py-1 text-xs font-semibold text-[#f3d28a]">
-              생성 실패
-            </span>
-          ) : null}
-          {imageUrl && !style.error ? (
-            <button
-              aria-label={`${style.name} 추천 이미지 저장`}
-              className="flex size-8 items-center justify-center rounded-md border border-white/12 bg-[#11100e]/78 text-[#fffaf1] backdrop-blur-sm transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
-              onClick={(event) => {
-                event.stopPropagation();
-                void downloadResultImage(
-                  imageUrl,
-                  `mirilook-${style.id}-recommendation.jpg`,
-                );
-              }}
-              title="이미지 저장"
-              type="button"
-            >
-              <Download aria-hidden="true" size={15} />
-            </button>
-          ) : null}
+        {active && canInteract ? (
+          <span className="absolute right-2 top-2 z-30 flex size-7 items-center justify-center rounded-full bg-[#f3d28a] text-[#1a1712] shadow">
+            <Check aria-hidden="true" size={16} />
+          </span>
+        ) : null}
+        {canInteract ? (
+          <span className="absolute bottom-2 right-2 z-30 inline-flex items-center gap-1 rounded-full bg-[#11100e]/72 px-2 py-1 text-[10px] font-semibold text-[#f3d28a] backdrop-blur-sm">
+            <Maximize2 aria-hidden="true" size={11} /> 크게
+          </span>
+        ) : null}
+      </button>
+
+      {/* 사진 아래: 선택 / 저장 버튼 → 그 아래 제목 (사진과 겹치지 않게) */}
+      <div className="flex flex-col gap-1.5 p-1.5 sm:p-2">
+        <div className="flex items-center gap-1.5">
+          <button
+            aria-label={`${style.name} 선택`}
+            aria-pressed={active}
+            className={`inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-md border px-1 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              active
+                ? "border-[#f3d28a] bg-[#f3d28a] text-[#1a1712]"
+                : "border-[#c9a96a]/50 bg-[#171511] text-[#f3d28a] hover:bg-[#f3d28a]/10"
+            }`}
+            disabled={!canInteract}
+            onClick={onSelect}
+            type="button"
+          >
+            <Check aria-hidden="true" size={14} />
+            {active ? "선택됨" : "선택"}
+          </button>
+          <button
+            aria-label={`${style.name} 추천 이미지 저장`}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-white/12 bg-[#171511] text-[#e7dccb] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!canInteract}
+            onClick={() => {
+              if (!imageUrl) return;
+              void downloadResultImage(
+                imageUrl,
+                `mirilook-${style.id}-recommendation.jpg`,
+              );
+            }}
+            title="이미지 저장"
+            type="button"
+          >
+            <Download aria-hidden="true" size={14} />
+          </button>
         </div>
-        <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
-          <p className="text-sm font-semibold leading-tight text-[#fffaf1] sm:text-lg lg:text-xl">
-            {style.name}
-          </p>
-        </div>
-      </div>
-      <div className="p-2 sm:p-3 lg:p-4">
-        <p className="text-xs leading-5 text-[#b8aa95] sm:text-sm sm:leading-6">
-          {style.reason}
+        <p className="truncate text-center text-xs font-semibold leading-tight text-[#fffaf1] sm:text-sm">
+          {style.name}
         </p>
-        <div className="hidden sm:block">
-          <StyleAdviceBlocks maxItems={2} source={style} />
-        </div>
-        <div className="mt-3 hidden flex-wrap gap-2 sm:flex">
-          {style.tags.map((tag) => (
-            <span
-              className="rounded-md bg-white/7 px-2 py-1 text-xs text-[#d8cbb8]"
-              key={tag}
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
       </div>
     </article>
+  );
+}
+
+// 추천 카드 사진을 누르면 뜨는 크게 보기 — 큰 이미지 + 설명/조언 + 선택·저장.
+function RecommendationDetailDialog({
+  active,
+  frontPhoto,
+  onClose,
+  onSelect,
+  style,
+}: {
+  active: boolean;
+  frontPhoto: UploadedPhoto;
+  onClose: () => void;
+  onSelect: () => void;
+  style: DisplayRecommendation;
+}) {
+  const imageUrl = style.imageUrl ?? (!liveAiEnabled ? frontPhoto.url : "");
+
+  return (
+    <ViewportCenteredOverlay
+      aria-label={`${style.name} 크게 보기`}
+      aria-modal="true"
+      className="bg-black/84"
+      onClick={onClose}
+      role="dialog"
+    >
+      <div
+        className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-[#c9a96a]/45 bg-[#11100e] shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+          <p className="min-w-0 truncate text-base font-bold text-[#fffaf1]">
+            {style.name}
+          </p>
+          <button
+            aria-label="닫기"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-white/12 bg-[#171511] text-[#e7dccb] transition hover:bg-white/10"
+            onClick={onClose}
+            type="button"
+          >
+            <X aria-hidden="true" size={18} />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {imageUrl ? (
+            <img
+              alt={`${style.name} 확대 이미지`}
+              className={`aspect-square w-full bg-black object-cover ${style.cropClass}`}
+              src={imageUrl}
+            />
+          ) : null}
+          <div className="grid gap-3 p-4">
+            <p className="text-sm leading-6 text-[#d8cbb8]">{style.reason}</p>
+            <StyleAdviceBlocks source={style} />
+            <div className="flex flex-wrap gap-2">
+              {style.tags.map((tag) => (
+                <span
+                  className="rounded-md bg-white/7 px-2 py-1 text-xs text-[#d8cbb8]"
+                  key={tag}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 border-t border-white/10 p-3">
+          <button
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-white/12 bg-[#171511] text-[#e7dccb] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!imageUrl}
+            onClick={() => {
+              if (!imageUrl) return;
+              void downloadResultImage(
+                imageUrl,
+                `mirilook-${style.id}-recommendation.jpg`,
+              );
+            }}
+            title="이미지 저장"
+            type="button"
+          >
+            <Download aria-hidden="true" size={18} />
+          </button>
+          <button
+            className={`inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md px-4 text-sm font-black transition ${
+              active
+                ? "bg-[#3a2e18] text-[#f3d28a]"
+                : "bg-[#f3d28a] text-[#1a1712] hover:bg-[#ffdf98]"
+            }`}
+            onClick={onSelect}
+            type="button"
+          >
+            <Check aria-hidden="true" size={18} />
+            {active ? "선택됨 · 상담으로" : "이 스타일 선택"}
+          </button>
+        </div>
+      </div>
+    </ViewportCenteredOverlay>
   );
 }
 
@@ -9172,6 +9537,46 @@ function buildRecommendationCompositionLabel(referenceCount: number) {
   const regularCount = Math.max(0, 9 - cappedReferenceCount);
 
   return `일반 추천 ${regularCount}개와 연예인 레퍼런스 추천 ${cappedReferenceCount}개`;
+}
+
+// 직접 고른 hex 색을 AI가 확실히 반영하도록 강한 지시문을 만든다.
+// 채도가 높은(파랑·초록·보라 등 패션 컬러) 경우 "natural" 문구가 색을 죽여버리므로
+// 반드시 그 색으로 염색하라고 못박고, 은은한 톤은 자연스럽게 표현하도록 분기한다.
+function buildCustomHairColorPrompt(hex: string) {
+  const clean = hex.toUpperCase();
+  const { r, g, b } = hexToRgbChannels(clean);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const saturation = max === 0 ? 0 : (max - min) / max;
+  const isVivid = saturation >= 0.45 && max >= 90;
+
+  if (isVivid) {
+    return [
+      `The hair MUST be dyed exactly this color: HEX ${clean} (RGB ${r}, ${g}, ${b}).`,
+      "This is an intentional bold fashion hair-dye color chosen by the user.",
+      "Apply it as a full, saturated, all-over dye across every strand of hair.",
+      "Do NOT convert it to a natural brown/black, do NOT desaturate it, and do NOT treat it as a subtle tint or highlight — the whole head of hair should clearly read as this exact color.",
+      "Keep realistic hair texture, shine and shadow, but the base color must match this HEX.",
+    ].join(" ");
+  }
+
+  return [
+    `Dye the hair to this exact color: HEX ${clean} (RGB ${r}, ${g}, ${b}).`,
+    "Apply it as an even, all-over hair color across all strands.",
+    "Match this precise tone as closely as possible, keeping it salon-realistic with natural lighting, texture and shine. Do not shift it toward a different color family.",
+  ].join(" ");
+}
+
+function hexToRgbChannels(hex: string) {
+  const match = hex
+    .trim()
+    .match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (!match) return { r: 0, g: 0, b: 0 };
+  return {
+    r: parseInt(match[1], 16),
+    g: parseInt(match[2], 16),
+    b: parseInt(match[3], 16),
+  };
 }
 
 function applyHairColor(
@@ -10362,92 +10767,34 @@ function formatHistoryDate(createdAt: string) {
   }).format(date);
 }
 
-function openPrintableReport(item: ConsultationHistoryItem) {
-  const imageMarkup = item.images
-    .map(
-      (image) => `
-        <figure>
-          <img alt="${escapeHtml(item.styleName)} ${escapeHtml(image.label)}" src="${image.imageUrl}" />
-          <figcaption>${escapeHtml(image.label)}</figcaption>
-        </figure>
-      `,
-    )
-    .join("");
-  const adviceMarkup = buildAdviceReportMarkup(item);
-
-  return openPrintableHtmlReport(`
-    <!doctype html>
-    <html lang="ko">
-      <head>
-        <meta charset="utf-8" />
-        <title>Miri Look ${escapeHtml(item.styleName)}</title>
-        <style>
-          body { margin: 0; padding: 32px; background: #f5f0e7; color: #171511; font-family: Arial, sans-serif; }
-          header { margin-bottom: 24px; border-bottom: 1px solid #c9a96a; padding-bottom: 16px; }
-          h1 { margin: 0; font-size: 28px; }
-          p { margin: 8px 0 0; color: #5b5144; line-height: 1.6; }
-          .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-          figure { margin: 0; overflow: hidden; border: 1px solid #d5c6aa; border-radius: 8px; background: white; }
-          img { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: cover; }
-          figcaption { padding: 8px 10px; font-weight: 700; color: #3b3328; }
-          @media print { body { background: white; padding: 20px; } }
-        </style>
-      </head>
-      <body>
-        <header>
-          <h1>미리룩 결과 기록</h1>
-          <p>${escapeHtml(item.styleName)} · ${escapeHtml(item.hairColorName)} · ${escapeHtml(formatHistoryDate(item.createdAt))}</p>
-          <p>업로드 사진 ${item.sourcePhotoCount}장 기준 · 생성 결과 ${item.images.length}장</p>
-          ${item.styleReason ? `<p>추천 이유: ${escapeHtml(item.styleReason)}</p>` : ""}
-          ${item.memo ? `<p>요청 메모: ${escapeHtml(item.memo)}</p>` : ""}
-        </header>
-        ${adviceMarkup}
-        <main class="grid">${imageMarkup}</main>
-      </body>
-    </html>
-  `);
-}
-
-function buildAdviceReportMarkup(item: ConsultationHistoryItem) {
-  const rows = [
-    ["시술 과정", item.salonProcess],
-    ["관리 포인트", item.maintenanceAdvice],
-    ["코디 추천", item.outfitAdvice],
-    ["메이크업 추천", item.makeupAdvice],
-  ].filter((row): row is [string, string] => Boolean(row[1]?.trim()));
-
-  if (!rows.length) {
-    return "";
+// blob을 모바일 갤러리 공유(navigator.share)로 저장하거나, 안 되면 같은출처 blob URL로
+// 다운로드한다. 교차출처 이미지 URL에 <a download>를 직접 걸면 앱 WebView가 다운로드 대신
+// 페이지 이동을 해버려(=이탈 경고창, 저장 실패) 반드시 blob으로 변환한 뒤 처리한다.
+async function saveOrShareBlob(blob: Blob, fileName: string) {
+  const type = blob.type || "image/jpeg";
+  if (typeof navigator !== "undefined" && typeof navigator.canShare === "function") {
+    const file = new File([blob], fileName, { type });
+    if (navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file] });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+      }
+    }
   }
 
-  return `
-    <section style="margin:0 0 24px;padding:16px;border:1px solid #d5c6aa;border-radius:8px;background:#fffaf1">
-      <h2 style="margin:0 0 10px;font-size:18px">상담 조언</h2>
-      ${rows
-        .map(
-          ([label, value]) =>
-            `<p style="margin:8px 0;color:#5b5144;line-height:1.6"><strong style="color:#171511">${escapeHtml(label)}</strong> ${escapeHtml(value)}</p>`,
-        )
-        .join("")}
-    </section>
-  `;
-}
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (character) => {
-    switch (character) {
-      case "&":
-        return "&amp;";
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case '"':
-        return "&quot;";
-      default:
-        return "&#39;";
-    }
-  });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }
 
 async function downloadResultImage(
@@ -10455,30 +10802,36 @@ async function downloadResultImage(
   fileName: string,
   options: { mirrored?: boolean } = {},
 ) {
-  let downloadUrl = imageUrl;
-  let shouldRevokeDownloadUrl = false;
+  let sourceUrl = imageUrl;
+  let shouldRevoke = false;
 
   if (options.mirrored) {
     try {
-      downloadUrl = await createMirroredImageObjectUrl(imageUrl);
-      shouldRevokeDownloadUrl = true;
+      sourceUrl = await createMirroredImageObjectUrl(imageUrl);
+      shouldRevoke = true;
       fileName = appendFileNameSuffix(fileName, "-mirrored");
     } catch (error) {
       console.warn("mirrored image download failed, falling back to original", error);
     }
   }
 
-  const link = document.createElement("a");
-
-  link.href = downloadUrl;
-  link.download = fileName;
-  link.rel = "noopener";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-
-  if (shouldRevokeDownloadUrl) {
-    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+  try {
+    const response = await fetch(sourceUrl);
+    const blob = await response.blob();
+    await saveOrShareBlob(blob, fileName);
+  } catch (error) {
+    console.warn("blob save failed, falling back to direct link", error);
+    const link = document.createElement("a");
+    link.href = sourceUrl;
+    link.download = fileName;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } finally {
+    if (shouldRevoke) {
+      window.setTimeout(() => URL.revokeObjectURL(sourceUrl), 1000);
+    }
   }
 }
 
@@ -10581,15 +10934,210 @@ async function downloadImagesAsGrid(
     );
   });
 
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = objectUrl;
-  link.download = fileName;
-  link.rel = "noopener";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  await saveOrShareBlob(blob, fileName);
+}
+
+// 상담 결과를 한 장의 "결과지" 이미지로 그려 저장한다.
+// (기존 window.open 인쇄는 앱 WebView에서 새 창에 갇혀 돌아오지 못하는 문제가 있어
+//  캔버스 이미지 → navigator.share/다운로드 방식으로 대체.)
+function wrapCanvasText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+) {
+  const lines: string[] = [];
+  let line = "";
+  for (const char of text) {
+    if (char === "\n") {
+      lines.push(line);
+      line = "";
+      continue;
+    }
+    const candidate = line + char;
+    if (context.measureText(candidate).width > maxWidth && line) {
+      lines.push(line);
+      line = char;
+    } else {
+      line = candidate;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [""];
+}
+
+async function saveConsultationReportImage(
+  item: ConsultationHistoryItem,
+  fileName: string,
+) {
+  const width = 1080;
+  const pad = 48;
+  const contentWidth = width - pad * 2;
+  const ink = "#171511";
+  const sub = "#5b5144";
+  const gold = "#b98a2e";
+
+  const loaded: HTMLImageElement[] = [];
+  for (const image of item.images) {
+    try {
+      loaded.push(await loadImageElementForGrid(image.imageUrl));
+    } catch (error) {
+      console.warn("report image load failed, skipping", error);
+    }
+  }
+
+  type Segment = {
+    text: string;
+    font: string;
+    color: string;
+    lineHeight: number;
+    gapAfter: number;
+  };
+  const segments: Segment[] = [
+    {
+      text: "미리룩 결과 기록",
+      font: "bold 42px sans-serif",
+      color: ink,
+      lineHeight: 54,
+      gapAfter: 14,
+    },
+    {
+      text: `${item.styleName} · ${item.hairColorName} · ${formatHistoryDate(item.createdAt)}`,
+      font: "600 26px sans-serif",
+      color: sub,
+      lineHeight: 38,
+      gapAfter: 6,
+    },
+    {
+      text: `업로드 사진 ${item.sourcePhotoCount}장 기준 · 생성 결과 ${item.images.length}장`,
+      font: "24px sans-serif",
+      color: sub,
+      lineHeight: 36,
+      gapAfter: 18,
+    },
+  ];
+  if (item.styleReason?.trim()) {
+    segments.push({
+      text: `추천 이유: ${item.styleReason.trim()}`,
+      font: "24px sans-serif",
+      color: sub,
+      lineHeight: 36,
+      gapAfter: 8,
+    });
+  }
+  if (item.memo?.trim()) {
+    segments.push({
+      text: `요청 메모: ${item.memo.trim()}`,
+      font: "24px sans-serif",
+      color: sub,
+      lineHeight: 36,
+      gapAfter: 8,
+    });
+  }
+
+  const adviceRows: Array<[string, string]> = (
+    [
+      ["시술 과정", item.salonProcess],
+      ["관리 포인트", item.maintenanceAdvice],
+      ["코디 추천", item.outfitAdvice],
+      ["메이크업 추천", item.makeupAdvice],
+    ] as Array<[string, string | undefined]>
+  ).filter((row): row is [string, string] => Boolean(row[1]?.trim()));
+  for (const [label, value] of adviceRows) {
+    segments.push({
+      text: label,
+      font: "bold 25px sans-serif",
+      color: ink,
+      lineHeight: 36,
+      gapAfter: 2,
+    });
+    segments.push({
+      text: value.trim(),
+      font: "23px sans-serif",
+      color: sub,
+      lineHeight: 34,
+      gapAfter: 14,
+    });
+  }
+
+  // 1차: 텍스트 높이 측정
+  const measureContext = document.createElement("canvas").getContext("2d");
+  if (!measureContext) throw new Error("canvas_context_unavailable");
+  let textHeight = pad;
+  const prepared = segments.map((segment) => {
+    measureContext.font = segment.font;
+    const lines = wrapCanvasText(measureContext, segment.text, contentWidth);
+    textHeight += lines.length * segment.lineHeight + segment.gapAfter;
+    return { segment, lines };
+  });
+
+  // 이미지 그리드(항상 3열 기준으로 정사각 칸) 높이
+  const cellGap = 16;
+  const cellSize = (contentWidth - cellGap * 2) / 3;
+  const rows = loaded.length ? Math.ceil(loaded.length / 3) : 0;
+  const gridHeight = rows
+    ? rows * cellSize + (rows - 1) * cellGap + 16
+    : 0;
+
+  const totalHeight = Math.round(textHeight + gridHeight + pad);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = totalHeight;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("canvas_context_unavailable");
+
+  context.fillStyle = "#f5f0e7";
+  context.fillRect(0, 0, width, totalHeight);
+  context.textBaseline = "top";
+
+  let y = pad;
+  prepared.forEach(({ segment, lines }) => {
+    context.font = segment.font;
+    context.fillStyle = segment.color;
+    for (const line of lines) {
+      context.fillText(line, pad, y);
+      y += segment.lineHeight;
+    }
+    y += segment.gapAfter;
+  });
+
+  // 이미지 그리드
+  loaded.forEach((image, index) => {
+    const column = index % 3;
+    const row = Math.floor(index / 3);
+    const cellX = pad + column * (cellSize + cellGap);
+    const cellY = y + row * (cellSize + cellGap);
+    const imageWidth = image.naturalWidth || image.width;
+    const imageHeight = image.naturalHeight || image.height;
+    const scale = Math.max(cellSize / imageWidth, cellSize / imageHeight);
+    const drawWidth = imageWidth * scale;
+    const drawHeight = imageHeight * scale;
+    context.save();
+    context.beginPath();
+    context.rect(cellX, cellY, cellSize, cellSize);
+    context.clip();
+    context.drawImage(
+      image,
+      cellX + (cellSize - drawWidth) / 2,
+      cellY + (cellSize - drawHeight) / 2,
+      drawWidth,
+      drawHeight,
+    );
+    context.restore();
+    context.strokeStyle = gold;
+    context.lineWidth = 1;
+    context.strokeRect(cellX + 0.5, cellY + 0.5, cellSize - 1, cellSize - 1);
+  });
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (result) =>
+        result ? resolve(result) : reject(new Error("canvas_blob_unavailable")),
+      "image/jpeg",
+      0.95,
+    );
+  });
+
+  await saveOrShareBlob(blob, fileName);
 }
 
 function createMirroredImageObjectUrl(imageUrl: string) {
