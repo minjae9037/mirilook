@@ -248,8 +248,8 @@ export function MirilookHairMoneyStore() {
   }
 
   // 앱: Google Play 결제 시트 → 서버 적립(iap-grant). 이니시스 경로는 절대 타지 않는다.
-  async function startNativePayment() {
-    if (!selectedProduct) {
+  async function startNativePayment(product = selectedProduct) {
+    if (!product) {
       return;
     }
 
@@ -257,8 +257,8 @@ export function MirilookHairMoneyStore() {
     setNeedsLogin(false);
     setStatus("Google Play 결제를 준비하는 중입니다.");
     trackEvent("checkout_started", {
-      amount: selectedProduct.amount,
-      productId: selectedProduct.id,
+      amount: product.amount,
+      productId: product.id,
     });
 
     try {
@@ -281,7 +281,7 @@ export function MirilookHairMoneyStore() {
 
       await ensureNativeBillingReady(profileId);
 
-      const nativeProductId = toNativeProductId(selectedProduct.id);
+      const nativeProductId = toNativeProductId(product.id);
       const nativeProducts = await getNativeHairMoneyProducts();
       const nativeProduct = nativeProducts.find(
         (item) => item.identifier === nativeProductId,
@@ -317,23 +317,23 @@ export function MirilookHairMoneyStore() {
     }
   }
 
-  async function startPayment() {
-    if (!selectedProduct) {
+  async function startPayment(product = selectedProduct) {
+    if (!product) {
       return;
     }
 
     // 네이티브 분기는 최상단 — 아래 이니시스 경로로 절대 흘러가면 안 된다.
     if (isApp) {
-      await startNativePayment();
+      await startNativePayment(product);
       return;
     }
 
     setIsPaying(true);
     setNeedsLogin(false);
-    setStatus(`${selectedProduct.name} 결제 정보를 준비하는 중입니다.`);
+    setStatus(`${product.name} 결제 정보를 준비하는 중입니다.`);
     trackEvent("checkout_started", {
-      amount: selectedProduct.amount,
-      productId: selectedProduct.id,
+      amount: product.amount,
+      productId: product.id,
     });
 
     try {
@@ -346,7 +346,7 @@ export function MirilookHairMoneyStore() {
       }
 
       const response = await fetch("/api/payments/inicis/prepare/", {
-        body: JSON.stringify({ productId: selectedProduct.id }),
+        body: JSON.stringify({ productId: product.id }),
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -452,7 +452,7 @@ export function MirilookHairMoneyStore() {
             </span>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="mt-4 grid grid-cols-2 gap-2.5 sm:gap-3">
             {products.map((product) => {
               const selected = product.id === selectedProduct?.id;
               const listPriceKrw =
@@ -468,13 +468,20 @@ export function MirilookHairMoneyStore() {
               return (
                 <button
                   aria-pressed={selected}
-                  className={`min-h-44 rounded-md border p-4 text-left transition ${
+                  className={`min-w-0 rounded-md border p-3 text-left transition sm:p-4 ${
                     selected
                       ? "border-[#f3d28a] bg-[#30271a]/82 shadow-lg shadow-[#f3d28a]/5"
                       : "border-white/10 bg-[#0f0e0c]/72 hover:border-[#f3d28a]/45 hover:bg-[#15130f]"
                   }`}
                   key={product.id}
-                  onClick={() => setSelectedProductId(product.id)}
+                  onClick={() => {
+                    // 상품 클릭 = 즉시 결제창(하트스코어와 동일). state 갱신은 비동기라
+                    // 방금 클릭한 product를 직접 넘겨 이전 선택이 결제되는 것을 막는다.
+                    setSelectedProductId(product.id);
+                    if (isReady && !isPaying) {
+                      void startPayment(product);
+                    }
+                  }}
                   type="button"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -485,10 +492,10 @@ export function MirilookHairMoneyStore() {
                           Hair Money
                         </p>
                       </div>
-                      <p className="mt-3 text-3xl font-black text-[#fffaf1]">
+                      <p className="mt-3 text-2xl font-black text-[#fffaf1] sm:text-3xl">
                         {formatHairMoney(product.hairMoneyAmount)}
                         {discountPercent ? (
-                          <span className="ml-2 inline-block rounded-md bg-[#1f9d57] px-1.5 py-0.5 align-middle text-xs font-extrabold text-white">
+                          <span className="ml-1.5 inline-block rounded-md bg-[#1f9d57] px-1.5 py-0.5 align-middle text-[10px] font-extrabold text-white sm:ml-2 sm:text-xs">
                             {discountPercent}% 할인
                           </span>
                         ) : null}
@@ -519,14 +526,14 @@ export function MirilookHairMoneyStore() {
                     </span>
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between gap-3">
-                    <span className="flex items-baseline gap-2">
+                  <div className="mt-4 flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
                       {hasDiscount ? (
-                        <span className="text-sm font-semibold text-[#8f826f] line-through decoration-[#ff5c8a] decoration-2">
+                        <span className="text-xs font-semibold text-[#8f826f] line-through decoration-[#ff5c8a] decoration-2 sm:text-sm">
                           {listPriceKrw.toLocaleString("ko-KR")}원
                         </span>
                       ) : null}
-                      <span className="text-xl font-bold text-[#f3d28a]">
+                      <span className="text-lg font-bold text-[#f3d28a] sm:text-xl">
                         {product.amount.toLocaleString("ko-KR")}원
                       </span>
                     </span>
@@ -850,6 +857,8 @@ function getCheckoutErrorMessage(reason: string | undefined) {
       return "Hair Money 저장을 위한 Supabase 연결이 필요합니다.";
     case "supabase_upsert_failed":
       return "결제 주문 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+    case "inicis_not_ready":
+      return "웹 결제는 준비 중입니다. 앱에서 결제하거나 잠시 후 다시 시도해 주세요.";
     default:
       return "결제 정보를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.";
   }
@@ -910,19 +919,21 @@ function getLedgerDirectionLabel(direction: HairMoneyLedgerItem["direction"]) {
 function getLedgerReasonLabel(item: HairMoneyLedgerItem) {
   // 결제수단 중립 표기 — 웹(카드)에서 충전한 내역이 앱에도 그대로 보이므로,
   // 라벨에 결제수단을 적으면 앱 안에서 외부 결제를 노출하는 모양이 된다.
-  if (item.reason === "hair_money_purchase") {
-    return "Hair Money 충전";
+  switch (item.reason) {
+    case "hair_money_purchase":
+      return "Hair Money 충전";
+    case "style_recommendation":
+      return "헤어스타일 추천 사용";
+    case "extra_consultation_set":
+      return "추가 상담 이미지 생성 사용";
+    case "community_post_reward":
+      return "커뮤니티 피드 공유 보상";
+    case "style_recommendation_failed_refund":
+    case "style_recommendation_refund":
+      return "추천 실패/검토 환불";
+    default:
+      return item.reason || item.sourceType;
   }
-
-  if (item.reason === "style_recommendation") {
-    return "헤어스타일 추천 사용";
-  }
-
-  if (item.reason === "style_recommendation_failed_refund") {
-    return "추천 실패 환불";
-  }
-
-  return item.reason || item.sourceType;
 }
 
 function formatLedgerDate(value: string) {
