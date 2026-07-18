@@ -6096,19 +6096,20 @@ function UploadBox({
 
   return (
     <button
-      className={`min-h-0 overflow-hidden rounded-md border text-left transition sm:aspect-[4/5] lg:aspect-[3/4] ${
+      className={`min-h-0 overflow-hidden rounded-md border text-left transition ${
         photo
-          ? "aspect-[3/4] border-[#c9a96a]/65 bg-[#0f0e0c]"
-          : "border-dashed border-[#c9a96a]/55 bg-[#0f0e0c]/72 hover:border-[#f3d28a] hover:bg-[#1d1912]/86"
+          ? "border-[#c9a96a]/65 bg-[#0f0e0c]"
+          : "aspect-[3/4] sm:aspect-[4/5] lg:aspect-[3/4] border-dashed border-[#c9a96a]/55 bg-[#0f0e0c]/72 hover:border-[#f3d28a] hover:bg-[#1d1912]/86"
       }`}
       onClick={onClick}
       type="button"
     >
       {photo ? (
-        <div className="grid h-full grid-rows-[minmax(0,1fr)_auto]">
+        // 사진에 고정 비율을 줘서 아래 라벨/적합도 텍스트가 늘어도 사진이 눌리지 않게 한다.
+        <div className="flex flex-col">
           <img
             alt={`${label} 미리보기`}
-            className="h-full min-h-0 w-full bg-[#0f0e0c] object-cover"
+            className="aspect-[3/4] w-full bg-[#0f0e0c] object-cover"
             src={photo.url}
           />
           <div className="p-1.5 sm:p-2 lg:p-3">
@@ -8516,13 +8517,14 @@ function SelectedPreviewPanel({
           <div
             className={`absolute inset-0 bg-gradient-to-b ${style.accent} via-transparent to-[#0f0e0c]/88`}
           />
-          <div className="absolute bottom-5 left-5 right-5">
+          <div className="absolute bottom-4 left-5 right-5">
             <p
-              className="text-3xl font-bold"
+              className="truncate font-bold"
               style={{
+                fontSize: "0.95rem",
                 color: "#ffffff",
                 textShadow:
-                  "0 0 6px rgba(255,255,255,0.9), 0 0 14px rgba(255,255,255,0.65), 0 2px 6px rgba(0,0,0,0.55)",
+                  "0 0 5px rgba(255,255,255,0.9), 0 0 12px rgba(255,255,255,0.6), 0 2px 6px rgba(0,0,0,0.6)",
               }}
             >
               {style.name}

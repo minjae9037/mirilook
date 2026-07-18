@@ -115,7 +115,7 @@ export function MirilookPasswordSettings() {
   }
 
   return (
-    <section className="grid gap-4 rounded-lg border border-white/12 bg-[#171511]/92 p-4 shadow-2xl shadow-black/40 backdrop-blur md:p-5">
+    <section className="grid min-w-0 grid-cols-1 gap-4 rounded-lg border border-white/12 bg-[#171511]/92 p-4 shadow-2xl shadow-black/40 backdrop-blur md:p-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -135,23 +135,23 @@ export function MirilookPasswordSettings() {
         </p>
       </div>
 
-      <div className="grid gap-3 md:max-w-md">
-        <label className="grid gap-1 text-sm font-semibold text-[#e7dccb]">
+      <div className="grid min-w-0 grid-cols-1 gap-3 md:max-w-md">
+        <label className="grid min-w-0 gap-1 text-sm font-semibold text-[#e7dccb]">
           새 비밀번호
           <input
             autoComplete="new-password"
-            className="h-11 rounded-md border border-white/10 bg-[#11100e] px-3 text-sm text-[#fffaf1] outline-none transition placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
+            className="h-11 w-full min-w-0 rounded-md border border-white/10 bg-[#11100e] px-3 text-sm text-[#fffaf1] outline-none transition placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
             onChange={(event) => setPassword(event.target.value)}
             placeholder={`${MIN_PASSWORD_LENGTH}자 이상`}
             type="password"
             value={password}
           />
         </label>
-        <label className="grid gap-1 text-sm font-semibold text-[#e7dccb]">
+        <label className="grid min-w-0 gap-1 text-sm font-semibold text-[#e7dccb]">
           새 비밀번호 확인
           <input
             autoComplete="new-password"
-            className="h-11 rounded-md border border-white/10 bg-[#11100e] px-3 text-sm text-[#fffaf1] outline-none transition placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
+            className="h-11 w-full min-w-0 rounded-md border border-white/10 bg-[#11100e] px-3 text-sm text-[#fffaf1] outline-none transition placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
             onChange={(event) => setConfirmPassword(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {

@@ -517,21 +517,21 @@ export function MirilookProfilePanel() {
           <h3 className="text-base font-semibold text-[#fffaf1]">
             계정 정보
           </h3>
-          <div className="mt-4 grid gap-3">
-            <label className="grid gap-1 text-sm font-semibold text-[#e7dccb]">
+          <div className="mt-4 grid min-w-0 grid-cols-1 gap-3">
+            <label className="grid min-w-0 gap-1 text-sm font-semibold text-[#e7dccb]">
               닉네임
               <input
-                className="h-11 rounded-md border border-white/10 bg-[#11100e] px-3 text-sm text-[#fffaf1] outline-none transition placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
+                className="h-11 w-full min-w-0 rounded-md border border-white/10 bg-[#11100e] px-3 text-sm text-[#fffaf1] outline-none transition placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
                 maxLength={40}
                 onChange={(event) => setDisplayName(event.target.value)}
                 placeholder="예: 미리룩 대표님"
                 value={displayName}
               />
             </label>
-            <label className="grid gap-1 text-sm font-semibold text-[#e7dccb]">
+            <label className="grid min-w-0 gap-1 text-sm font-semibold text-[#e7dccb]">
               자기소개
               <textarea
-                className="min-h-32 resize-y rounded-md border border-white/10 bg-[#11100e] px-3 py-3 text-sm leading-6 text-[#fffaf1] outline-none transition placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
+                className="min-h-32 w-full min-w-0 resize-y rounded-md border border-white/10 bg-[#11100e] px-3 py-3 text-sm leading-6 text-[#fffaf1] outline-none transition placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
                 maxLength={600}
                 onChange={(event) => setBio(event.target.value)}
                 placeholder="선호하는 분위기, 직업/라이프스타일, 미용실 상담 때 남기고 싶은 내용을 적어두세요."
