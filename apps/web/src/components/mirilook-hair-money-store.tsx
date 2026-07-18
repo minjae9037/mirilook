@@ -17,7 +17,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { MirilookGenerationRefundNotice } from "@/components/mirilook-generation-refund-notice";
-import { useIsMirilookApp } from "@/lib/mirilook-native";
+import {
+  getMirilookAppPlatform,
+  useIsMirilookApp,
+} from "@/lib/mirilook-native";
 import {
   formatHairMoney,
   HairMoneyExtraConsultationCost,
@@ -131,6 +134,8 @@ export function MirilookHairMoneyStore() {
   // 앱(안드로이드) 안에서는 구글 인앱결제로만 판매한다. 디지털 재화를 외부 PG로
   // 앱 안에서 파는 것은 Google Play 결제 정책 위반이라 이니시스 경로를 완전히 차단한다.
   const { isApp, isReady } = useIsMirilookApp();
+  // iOS 앱에서 "Google Play" 문구가 뜨면 Apple 심사 반려(3.1.1) → 스토어 이름을 플랫폼별로.
+  const storeName = getMirilookAppPlatform() === "ios" ? "App Store" : "Google Play";
   const products = useMemo(() => [...MirilookHairMoneyProducts].reverse(), []);
   const [selectedProductId, setSelectedProductId] = useState(products[0]?.id ?? "");
   const [wallet, setWallet] = useState<HairMoneyWalletResponse>({
@@ -255,7 +260,7 @@ export function MirilookHairMoneyStore() {
 
     setIsPaying(true);
     setNeedsLogin(false);
-    setStatus("Google Play 결제를 준비하는 중입니다.");
+    setStatus(`${storeName} 결제를 준비하는 중입니다.`);
     trackEvent("checkout_started", {
       amount: product.amount,
       productId: product.id,
@@ -309,7 +314,7 @@ export function MirilookHairMoneyStore() {
       } else {
         console.error(error);
         setStatus(
-          "Google Play 결제 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+          `${storeName} 결제 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.`,
         );
       }
     } finally {
@@ -448,7 +453,7 @@ export function MirilookHairMoneyStore() {
               </p>
             </div>
             <span className="w-fit rounded-md border border-[#f3d28a]/30 bg-[#30271a]/60 px-3 py-2 text-xs font-bold text-[#f3d28a]">
-              {isApp ? "Google Play 결제" : "KG이니시스 PG"}
+              {isApp ? `${storeName} 결제` : "KG이니시스 PG"}
             </span>
           </div>
 
@@ -640,8 +645,8 @@ export function MirilookHairMoneyStore() {
             </li>
             {isApp ? (
               <li>
-                · 구매·환불은 <b className="text-[#fffaf1]">Google Play 결제 정책</b>
-                을 따르며, 환불은 Google Play 주문내역에서 신청할 수 있습니다.
+                · 구매·환불은 <b className="text-[#fffaf1]">{storeName} 결제 정책</b>
+                을 따르며, 환불은 {storeName} 주문내역에서 신청할 수 있습니다.
               </li>
             ) : (
               <>
@@ -790,6 +795,8 @@ function CoinMark() {
 }
 
 function RefundPolicy({ isApp }: { isApp: boolean }) {
+  const storeName =
+    getMirilookAppPlatform() === "ios" ? "App Store" : "Google Play";
   return (
     <section className="rounded-md border border-white/10 bg-[#0f0e0c]/72 p-3">
       <div className="flex items-center gap-2">
@@ -799,7 +806,7 @@ function RefundPolicy({ isApp }: { isApp: boolean }) {
       <ul className="mt-3 grid gap-2 text-xs leading-5 text-[#8f826f]">
         <li>· Hair Money는 유상 충전 사이버머니이며 현재 충전 기준은 1 Hair Money당 {HairMoneyUnitPriceKrw.toLocaleString("ko-KR")}원(VAT 포함)입니다.</li>
         {isApp ? (
-          <li>· 구매·환불은 Google Play 결제 정책을 따르며, 환불은 Google Play 주문내역에서 신청할 수 있습니다.</li>
+          <li>· 구매·환불은 {storeName} 결제 정책을 따르며, 환불은 {storeName} 주문내역에서 신청할 수 있습니다.</li>
         ) : (
           <>
             <li>· 구매 후 7일 이내 사용하지 않은 유상 Hair Money는 청약철회(취소)하여 환불받을 수 있습니다.</li>
