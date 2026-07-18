@@ -2,6 +2,7 @@ import { MirilookAccountDeletion } from "@/components/mirilook-account-deletion"
 import { MirilookHistoryManager } from "@/components/mirilook-history-manager";
 import { MirilookLogoutButton } from "@/components/mirilook-logout-button";
 import { MirilookMainNav } from "@/components/mirilook-main-nav";
+import { MirilookNotificationPreferences } from "@/components/mirilook-notification-preferences";
 import { MirilookPageHero } from "@/components/mirilook-page-hero";
 import { MirilookPasswordSettings } from "@/components/mirilook-password-settings";
 import { MirilookProfilePanel } from "@/components/mirilook-profile-panel";
@@ -12,8 +13,8 @@ export const metadata = {
 
 export default function MyPage() {
   return (
-    <main className="min-h-screen bg-[#11100e] text-[#f8f1e5]">
-      <section className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-5">
+    <main className="min-h-screen overflow-x-hidden bg-[#11100e] text-[#f8f1e5]">
+      <section className="mx-auto grid w-full min-w-0 max-w-7xl grid-cols-1 gap-6 px-5 py-5">
         <MirilookMainNav />
 
         <MirilookPageHero
@@ -23,8 +24,9 @@ export default function MyPage() {
           action={<MirilookLogoutButton />}
         />
 
-        <div className="grid gap-6 pb-12">
+        <div className="grid min-w-0 grid-cols-1 gap-6 pb-12">
           <MirilookProfilePanel />
+          <MirilookNotificationPreferences />
           <MirilookPasswordSettings />
           <MirilookHistoryManager />
           <MirilookAccountDeletion />

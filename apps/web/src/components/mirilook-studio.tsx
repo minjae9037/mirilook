@@ -5629,7 +5629,7 @@ function ViewportCenteredOverlay({
 
   return createPortal(
     <div
-      className={`fixed left-0 top-0 z-[1000] grid h-[100dvh] w-[100dvw] place-items-center overflow-hidden p-4 backdrop-blur-sm ${className}`}
+      className={`fixed left-0 top-0 z-[1000] flex h-[100dvh] w-[100dvw] items-center justify-center overflow-hidden p-4 backdrop-blur-sm ${className}`}
       {...rest}
     >
       {children}
@@ -6108,7 +6108,7 @@ function UploadBox({
         <div className="grid h-full grid-rows-[minmax(0,1fr)_auto]">
           <img
             alt={`${label} 미리보기`}
-            className="h-full min-h-0 w-full bg-[#0f0e0c] object-contain"
+            className="h-full min-h-0 w-full bg-[#0f0e0c] object-cover"
             src={photo.url}
           />
           <div className="p-1.5 sm:p-2 lg:p-3">
@@ -6823,15 +6823,15 @@ function ExpansionImagePreviewDialog({
     <div
       aria-label={`${preview.title} 크게 보기`}
       aria-modal="true"
-      className="mirilook-lightbox fixed left-0 top-0 z-[1000] grid h-[100dvh] w-[100dvw] place-items-center overflow-hidden bg-black/84 p-4 backdrop-blur-sm"
+      className="mirilook-lightbox fixed left-0 top-0 z-[1000] flex h-[100dvh] w-[100dvw] items-center justify-center overflow-hidden bg-black/84 p-4 backdrop-blur-sm"
       onClick={onClose}
       role="dialog"
     >
       <div
-        className="grid w-full max-w-5xl gap-3"
+        className="grid min-w-0 w-full max-w-5xl gap-3"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-base font-bold text-[#fffaf1]">
               {preview.title}
@@ -8590,10 +8590,10 @@ function RenderedResultPreviewDialog({
       role="dialog"
     >
       <div
-        className="grid w-full max-w-5xl gap-3"
+        className="grid min-w-0 w-full max-w-5xl gap-3"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-base font-bold text-[#fffaf1]">
               {selectedStyle.name} 상담용 이미지
@@ -8749,12 +8749,12 @@ function ResultCard({
         )}
       </button>
 
-      {/* 3행: 저장 / 180도 회전 버튼(사진 아래) */}
+      {/* 3행: 저장 / 180도 회전 버튼(사진 아래) — 아이콘만 */}
       {hasImage ? (
-        <div className="flex items-center gap-1.5 p-1.5">
+        <div className="flex items-center justify-center gap-2 p-1.5">
           <button
             aria-label={`${selectedStyle.name} ${result.label} 이미지 저장`}
-            className="inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-md border border-[#c9a96a]/50 bg-[#171511] text-xs font-bold text-[#f3d28a] transition hover:bg-[#f3d28a]/10"
+            className="inline-flex h-8 flex-1 items-center justify-center rounded-md border border-[#c9a96a]/50 bg-[#171511] text-[#f3d28a] transition hover:bg-[#f3d28a]/10"
             onClick={() => {
               if (!result.imageUrl) return;
               void downloadResultImage(
@@ -8766,7 +8766,7 @@ function ResultCard({
             title="이미지 저장"
             type="button"
           >
-            <Download aria-hidden="true" size={14} /> 저장
+            <Download aria-hidden="true" size={16} />
           </button>
           <button
             aria-label={
@@ -8775,7 +8775,7 @@ function ResultCard({
                 : `${selectedStyle.name} ${result.label} 좌우 반전하기`
             }
             aria-pressed={isMirrored}
-            className={`inline-flex size-8 shrink-0 items-center justify-center rounded-md border transition ${
+            className={`inline-flex h-8 flex-1 items-center justify-center rounded-md border transition ${
               isMirrored
                 ? "border-[#f3d28a] bg-[#f3d28a] text-[#171511]"
                 : "border-white/12 bg-[#171511] text-[#fffaf1] hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
