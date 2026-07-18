@@ -10,8 +10,12 @@ import {
   MessageCircle,
   Sparkles,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  getMirilookAppPlatform,
+  useIsMirilookApp,
+} from "@/lib/mirilook-native";
 import {
   getAuthRedirectUrl,
   getOAuthRedirectUrl,
@@ -26,9 +30,18 @@ type StatusTone = "info" | "success" | "error";
 
 export function MirilookAuthPanel() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const naverEnabled = useMemo(() => isNaverLoginEnabled(), []);
-  const [mode, setMode] = useState<AuthMode>("login");
+  // iOS 앱(Capacitor 웹뷰)에서는 App Store 4.8 + 웹뷰 제약(구글 disallowed_useragent)
+  // 때문에 Apple + 이메일만 노출한다. 웹/안드로이드에선 기존 소셜 로그인을 유지.
+  const { isApp } = useIsMirilookApp();
+  const isIosApp = isApp && getMirilookAppPlatform() === "ios";
+  // ?mode=signup으로 들어오면 회원가입 탭에서 시작한다.
+  // 하단 내비의 "회원가입하고 시작하기"가 이 링크를 쓴다.
+  const [mode, setMode] = useState<AuthMode>(() =>
+    searchParams.get("mode") === "signup" ? "signup" : "login",
+  );
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -72,8 +85,9 @@ export function MirilookAuthPanel() {
   );
 
   const signInWithProvider = useCallback(
-    async (provider: "google" | "kakao") => {
-      const providerLabel = provider === "google" ? "구글" : "카카오";
+    async (provider: "google" | "kakao" | "apple") => {
+      const providerLabel =
+        provider === "google" ? "구글" : provider === "apple" ? "Apple" : "카카오";
 
       if (!supabase) {
         setStatusTone("error");
@@ -467,61 +481,82 @@ export function MirilookAuthPanel() {
       ) : (
         <>
           <div className="mt-6 grid gap-3">
+            {/* Apple 로그인 — iOS 앱에서는 필수(4.8), 웹/안드로이드에서도 선택 제공 */}
             <button
               className="flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={busyAction === "kakao"}
-              onClick={() => void signInWithProvider("kakao")}
-              style={{ background: "#fde86b", color: "#3c2e00" }}
+              disabled={busyAction === "apple"}
+              onClick={() => void signInWithProvider("apple")}
+              style={{ background: "#000000", color: "#ffffff" }}
               type="button"
             >
-              {busyAction === "kakao" ? (
+              {busyAction === "apple" ? (
                 <Loader2 aria-hidden="true" className="animate-spin" size={18} />
               ) : (
-                <MessageCircle aria-hidden="true" fill="#3c2e00" size={18} />
+                <AppleIcon />
               )}
-              {`카카오로 ${actionVerb}`}
+              {`Apple로 ${actionVerb}`}
             </button>
 
-            <button
-              className="flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl border px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={busyAction === "google"}
-              onClick={() => void signInWithProvider("google")}
-              style={{
-                background: "#ffffff",
-                borderColor: "#dadce0",
-                color: "#1f1f1f",
-                boxShadow: "0 1px 3px rgba(60, 64, 67, 0.15)",
-              }}
-              type="button"
-            >
-              {busyAction === "google" ? (
-                <Loader2 aria-hidden="true" className="animate-spin" size={18} />
-              ) : (
-                <GoogleGIcon />
-              )}
-              {`Google로 ${actionVerb}`}
-            </button>
+            {/* iOS 앱에서는 구글/카카오/네이버를 숨긴다(웹뷰 제약·4.8). */}
+            {!isIosApp ? (
+              <>
+                <button
+                  className="flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={busyAction === "kakao"}
+                  onClick={() => void signInWithProvider("kakao")}
+                  style={{ background: "#fde86b", color: "#3c2e00" }}
+                  type="button"
+                >
+                  {busyAction === "kakao" ? (
+                    <Loader2 aria-hidden="true" className="animate-spin" size={18} />
+                  ) : (
+                    <MessageCircle aria-hidden="true" fill="#3c2e00" size={18} />
+                  )}
+                  {`카카오로 ${actionVerb}`}
+                </button>
 
-            {naverEnabled ? (
-              <button
-                className="flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={busyAction === "naver"}
-                onClick={() => {
-                  setBusyAction("naver");
-                  setStatusTone("info");
-                  setStatus("네이버 로그인 창으로 이동합니다...");
-                  startNaverLogin();
-                }}
-                style={{ background: "#dff3e7", color: "#0a9b4a" }}
-                type="button"
-              >
-                {busyAction === "naver" ? (
-                  <Loader2 aria-hidden="true" className="animate-spin" size={18} />
-                ) : (
-                  <span className="text-base font-black">N</span>
-                )}
-                {`네이버로 ${actionVerb}`}
-              </button>
+                <button
+                  className="flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl border px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={busyAction === "google"}
+                  onClick={() => void signInWithProvider("google")}
+                  style={{
+                    background: "#ffffff",
+                    borderColor: "#dadce0",
+                    color: "#1f1f1f",
+                    boxShadow: "0 1px 3px rgba(60, 64, 67, 0.15)",
+                  }}
+                  type="button"
+                >
+                  {busyAction === "google" ? (
+                    <Loader2 aria-hidden="true" className="animate-spin" size={18} />
+                  ) : (
+                    <GoogleGIcon />
+                  )}
+                  {`Google로 ${actionVerb}`}
+                </button>
+
+                {naverEnabled ? (
+                  <button
+                    className="flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={busyAction === "naver"}
+                    onClick={() => {
+                      setBusyAction("naver");
+                      setStatusTone("info");
+                      setStatus("네이버 로그인 창으로 이동합니다...");
+                      startNaverLogin();
+                    }}
+                    style={{ background: "#dff3e7", color: "#0a9b4a" }}
+                    type="button"
+                  >
+                    {busyAction === "naver" ? (
+                      <Loader2 aria-hidden="true" className="animate-spin" size={18} />
+                    ) : (
+                      <span className="text-base font-black">N</span>
+                    )}
+                    {`네이버로 ${actionVerb}`}
+                  </button>
+                ) : null}
+              </>
             ) : null}
           </div>
 
@@ -654,6 +689,14 @@ function GoogleGIcon() {
         d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"
         fill="#EA4335"
       />
+    </svg>
+  );
+}
+
+function AppleIcon() {
+  return (
+    <svg aria-hidden="true" height="20" viewBox="0 0 384 512" width="18" fill="#ffffff">
+      <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
     </svg>
   );
 }

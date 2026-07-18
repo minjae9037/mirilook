@@ -1,12 +1,15 @@
 "use client";
 
-import { isMirilookApp } from "@/lib/mirilook-native";
+import {
+  getMirilookAppPlatform,
+  isMirilookApp,
+} from "@/lib/mirilook-native";
 import {
   MirilookHairMoneyProducts,
   toNativeProductId,
 } from "@/lib/mirilook-payments";
 
-/** 웹 상품 목록에서 파생한 네이티브 상품 id 6종 — Play Console에 만들 목록의 단일 원천. */
+/** 웹 상품 목록에서 파생한 네이티브 상품 id 6종 — Play/App Store에 만들 목록의 단일 원천. */
 export const NATIVE_HAIR_MONEY_PRODUCT_IDS = MirilookHairMoneyProducts.map(
   (product) => toNativeProductId(product.id),
 );
@@ -14,6 +17,18 @@ export const NATIVE_HAIR_MONEY_PRODUCT_IDS = MirilookHairMoneyProducts.map(
 const REVENUECAT_ANDROID_KEY = (
   process.env.NEXT_PUBLIC_REVENUECAT_ANDROID_KEY ?? ""
 ).trim();
+const REVENUECAT_IOS_KEY = (
+  process.env.NEXT_PUBLIC_REVENUECAT_IOS_KEY ?? ""
+).trim();
+
+// 실행 중인 플랫폼(android/ios)에 맞는 RevenueCat 공개 키를 고른다.
+// RevenueCat은 크로스플랫폼이라 결제 로직은 공통, 키만 스토어별로 다르다.
+function getRevenueCatKey(): string {
+  const platform = getMirilookAppPlatform();
+  if (platform === "ios") return REVENUECAT_IOS_KEY;
+  if (platform === "android") return REVENUECAT_ANDROID_KEY;
+  return "";
+}
 
 export type NativeStoreProduct = {
   currencyCode?: string;
@@ -47,9 +62,9 @@ function getPurchasesBridge(): PurchasesBridge | null {
   return (window.Capacitor?.Plugins?.Purchases as PurchasesBridge | undefined) ?? null;
 }
 
-/** 앱 안에서 구글 인앱결제를 실제로 실행할 수 있는 상태인지(브리지 + 공개키). */
+/** 앱 안에서 인앱결제를 실제로 실행할 수 있는 상태인지(브리지 + 플랫폼별 공개키). */
 export function isNativeBillingAvailable() {
-  return Boolean(getPurchasesBridge()) && Boolean(REVENUECAT_ANDROID_KEY);
+  return Boolean(getPurchasesBridge()) && Boolean(getRevenueCatKey());
 }
 
 let configuredForProfile: string | null = null;
@@ -62,13 +77,14 @@ export async function ensureNativeBillingReady(profileId: string) {
     throw new Error("native_billing_unavailable");
   }
 
-  if (!REVENUECAT_ANDROID_KEY) {
+  const apiKey = getRevenueCatKey();
+  if (!apiKey) {
     throw new Error("native_billing_not_configured");
   }
 
   if (configuredForProfile === null) {
     await purchases.configure({
-      apiKey: REVENUECAT_ANDROID_KEY,
+      apiKey,
       appUserID: profileId,
     });
     configuredForProfile = profileId;

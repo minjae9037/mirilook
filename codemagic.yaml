@@ -35,7 +35,7 @@ workflows:
       vars:
         MIRILOOK_COUNTRY: "kr"       # capacitor.config.ts가 이 값으로 국가별 appId/appName 결정
         PACKAGE_NAME: "com.mirilook.app"
-      node: 20
+      node: 22                       # Capacitor 8 CLI는 Node ≥22 필요(cap sync가 20에서 실패)
       java: 17
     scripts:
       - name: npm 의존성 설치 (모노레포 루트)
@@ -85,11 +85,12 @@ workflows:
       vars:
         MIRILOOK_COUNTRY: "kr"
         BUNDLE_ID: "com.mirilook.app"
-        XCODE_WORKSPACE: "apps/mobile/ios/App/App.xcworkspace"
+        # 이 프로젝트는 CocoaPods가 아니라 SPM(Swift Package Manager) 기반이라
+        # Podfile/xcworkspace가 없다 → xcodeproj를 직접 빌드한다.
+        XCODE_PROJECT: "apps/mobile/ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
-      node: 20
+      node: 22                       # Capacitor 8 CLI는 Node ≥22 필요
       xcode: latest
-      cocoapods: default
     scripts:
       - name: npm 의존성 설치 (모노레포 루트)
         script: |
@@ -98,10 +99,6 @@ workflows:
         script: |
           cd apps/mobile
           npx cap sync ios
-      - name: CocoaPods 설치
-        script: |
-          cd apps/mobile/ios/App
-          pod install
       - name: 자동 코드사이닝 준비 (App Store Connect API 키 기반)
         script: |
           # keychain/인증서/프로비저닝 프로파일을 클라우드 Mac 안에서 자동 구성.
@@ -112,10 +109,10 @@ workflows:
             --create
           keychain add-certificates
           xcode-project use-profiles
-      - name: IPA 빌드
+      - name: IPA 빌드 (SPM — xcodeproj 직접)
         script: |
           xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
+            --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME"
     artifacts:
       - build/ios/ipa/*.ipa
