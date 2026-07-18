@@ -35,7 +35,6 @@ import {
   Link,
   Loader2,
   Mail,
-  Maximize2,
   RefreshCw,
   ScanFace,
   Search,
@@ -4710,7 +4709,7 @@ export function MirilookStudio() {
               style={{ fontSize: 14, fontWeight: 700 }}
               type="button"
             >
-              팔레트에서 고르기
+              팔레트 고르기
             </button>
           </div>
 
@@ -4926,7 +4925,6 @@ export function MirilookStudio() {
                 frontPhoto={frontPhoto}
                 key={style.id}
                 onEnlarge={() => setEnlargedRecommendationId(style.id)}
-                onSelect={() => previewStyle(style)}
                 style={style}
               />
             ))}
@@ -5081,20 +5079,6 @@ export function MirilookStudio() {
               <h2 className="text-lg font-semibold text-[#fffaf1]">
                 추천 결과
               </h2>
-            </div>
-            <div className="grid gap-2 text-sm leading-6 text-[#d8cbb8]">
-              {analysisNotes.map((line) => (
-                <p
-                  className={
-                    isConsultationGuideLine(line)
-                      ? "font-bold text-[#f3d28a] underline decoration-[#f3d28a]/80 decoration-2 underline-offset-4"
-                      : undefined
-                  }
-                  key={line}
-                >
-                  {line}
-                </p>
-              ))}
             </div>
             <RecommendationControlStack
               audience={selectedAudience}
@@ -5387,12 +5371,12 @@ export function MirilookStudio() {
                   공유 링크 만들기
                 </button>
               </div>
-              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <label className="sr-only" htmlFor="consultation-email">
                   상담 결과를 받을 이메일
                 </label>
                 <input
-                  className="h-10 rounded-md border border-white/10 bg-[#11100e] px-3 text-sm text-[#fffaf1] outline-none transition placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
+                  className="h-10 w-full min-w-0 rounded-md border border-white/10 bg-[#11100e] px-3 text-sm text-[#fffaf1] outline-none transition placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
                   id="consultation-email"
                   inputMode="email"
                   onChange={(event) => setEmailRecipient(event.target.value)}
@@ -6059,7 +6043,7 @@ function UploadBox({
         <div className="grid h-full grid-rows-[minmax(0,1fr)_auto]">
           <img
             alt={`${label} 미리보기`}
-            className="h-full min-h-0 w-full object-cover"
+            className="h-full min-h-0 w-full bg-[#0f0e0c] object-contain"
             src={photo.url}
           />
           <div className="p-1.5 sm:p-2 lg:p-3">
@@ -6606,7 +6590,14 @@ function OutfitRecommendationCard({
   const previewDescription = `${item.description}\n\n검색어: ${item.query}`;
 
   return (
-    <article className="overflow-hidden rounded-md border border-white/10 bg-white/[0.04] p-2">
+    <article className="flex min-w-0 flex-col overflow-hidden rounded-md border border-white/10 bg-white/[0.04] p-2">
+      {/* 1행: 라벨(좌상단) — 사진을 가리지 않도록 사진 위에 배치 */}
+      <div className="pb-1">
+        <span className="inline-block rounded-md bg-[#1d170d]/86 px-2 py-0.5 text-xs font-bold text-[#f3d28a]">
+          {item.label}
+        </span>
+      </div>
+      {/* 2행: 사진 */}
       <div className="relative aspect-square overflow-hidden rounded-md border border-white/10 bg-[#11100e]">
         {item.imageUrl ? (
           <button
@@ -6637,9 +6628,6 @@ function OutfitRecommendationCard({
             </span>
           </div>
         )}
-        <span className="absolute left-2 top-2 rounded-md bg-[#1d170d]/86 px-2 py-1 text-xs font-bold text-[#f3d28a]">
-          {item.label}
-        </span>
       </div>
     </article>
   );
@@ -8256,13 +8244,11 @@ function StyleCard({
   active,
   frontPhoto,
   onEnlarge,
-  onSelect,
   style,
 }: {
   active: boolean;
   frontPhoto: UploadedPhoto;
   onEnlarge: () => void;
-  onSelect: () => void;
   style: DisplayRecommendation;
 }) {
   const imageUrl = style.imageUrl ?? (!liveAiEnabled ? frontPhoto.url : "");
@@ -8281,7 +8267,7 @@ function StyleCard({
           : "border-white/12 bg-[#0f0e0c]/72 text-[#e7dccb]"
       }`}
     >
-      {/* 사진: 누르면 크게 보기(설명 포함). 얼굴을 가리는 오버레이/제목은 아래로 뺀다. */}
+      {/* 사진: 누르면 크게 보기 팝업(설명·선택·저장 포함). 얼굴을 가리는 버튼은 두지 않는다. */}
       <button
         aria-label={`${style.name} 크게 보기`}
         className="relative block aspect-square w-full overflow-hidden"
@@ -8317,52 +8303,12 @@ function StyleCard({
             <Check aria-hidden="true" size={16} />
           </span>
         ) : null}
-        {canInteract ? (
-          <span className="absolute bottom-2 right-2 z-30 inline-flex items-center gap-1 rounded-full bg-[#11100e]/72 px-2 py-1 text-[10px] font-semibold text-[#f3d28a] backdrop-blur-sm">
-            <Maximize2 aria-hidden="true" size={11} /> 크게
-          </span>
-        ) : null}
       </button>
 
-      {/* 사진 아래: 선택 / 저장 버튼 → 그 아래 제목 (사진과 겹치지 않게) */}
-      <div className="flex flex-col gap-1.5 p-1.5 sm:p-2">
-        <div className="flex items-center gap-1.5">
-          <button
-            aria-label={`${style.name} 선택`}
-            aria-pressed={active}
-            className={`inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-md border px-1 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-              active
-                ? "border-[#f3d28a] bg-[#f3d28a] text-[#1a1712]"
-                : "border-[#c9a96a]/50 bg-[#171511] text-[#f3d28a] hover:bg-[#f3d28a]/10"
-            }`}
-            disabled={!canInteract}
-            onClick={onSelect}
-            type="button"
-          >
-            <Check aria-hidden="true" size={14} />
-            {active ? "선택됨" : "선택"}
-          </button>
-          <button
-            aria-label={`${style.name} 추천 이미지 저장`}
-            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-white/12 bg-[#171511] text-[#e7dccb] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a] disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!canInteract}
-            onClick={() => {
-              if (!imageUrl) return;
-              void downloadResultImage(
-                imageUrl,
-                `mirilook-${style.id}-recommendation.jpg`,
-              );
-            }}
-            title="이미지 저장"
-            type="button"
-          >
-            <Download aria-hidden="true" size={14} />
-          </button>
-        </div>
-        <p className="truncate text-center text-xs font-semibold leading-tight text-[#fffaf1] sm:text-sm">
-          {style.name}
-        </p>
-      </div>
+      {/* 사진 아래: 제목만 (선택·저장은 사진 클릭 시 뜨는 팝업에서) */}
+      <p className="truncate p-1.5 text-center text-xs font-semibold leading-tight text-[#fffaf1] sm:p-2 sm:text-sm">
+        {style.name}
+      </p>
     </article>
   );
 }
@@ -8498,7 +8444,16 @@ function SelectedPreviewPanel({
             className={`absolute inset-0 bg-gradient-to-b ${style.accent} via-transparent to-[#0f0e0c]/88`}
           />
           <div className="absolute bottom-5 left-5 right-5">
-            <p className="text-3xl font-semibold text-[#fffaf1]">{style.name}</p>
+            <p
+              className="text-3xl font-bold"
+              style={{
+                color: "#ffffff",
+                textShadow:
+                  "0 0 6px rgba(255,255,255,0.9), 0 0 14px rgba(255,255,255,0.65), 0 2px 6px rgba(0,0,0,0.55)",
+              }}
+            >
+              {style.name}
+            </p>
           </div>
         </div>
       </div>
@@ -8674,100 +8629,92 @@ function ResultCard({
     progress: result.generationProgress,
   });
 
+  const hasImage = Boolean(result.imageUrl);
+
   return (
-    <div className="overflow-hidden rounded-md border border-[#2b281f] bg-[#0f0e0c]">
-      <div className="relative aspect-square overflow-hidden">
+    <div className="flex min-w-0 flex-col overflow-hidden rounded-md border border-[#2b281f] bg-[#0f0e0c]">
+      {/* 1행: 각도 라벨(좌상단) */}
+      <div className="px-1.5 pt-1.5">
+        <span className="inline-block rounded bg-[#30271a] px-1.5 py-0.5 text-[10px] font-bold leading-tight text-[#f3d28a] sm:text-xs">
+          {result.label}
+        </span>
+      </div>
+
+      {/* 2행: 사진(누르면 크게보기). 얼굴을 가리는 오버레이는 두지 않는다. */}
+      <button
+        aria-label={
+          hasImage ? `${selectedStyle.name} ${result.label} 크게 보기` : result.label
+        }
+        className="relative mt-1 block aspect-square w-full overflow-hidden"
+        onClick={hasImage ? onPreview : undefined}
+        type="button"
+      >
         {result.imageUrl ? (
-          <>
-            <img
-              alt={`${selectedStyle.name} ${result.label} 결과`}
-              className={`h-full w-full object-cover opacity-92 ${
-                result.className ?? ""
-              }`}
-              src={result.imageUrl}
-              style={getMirrorImageStyle(isMirrored)}
-            />
-            <button
-              aria-label={`${selectedStyle.name} ${result.label} 크게 보기`}
-              className="absolute inset-0 z-20 cursor-zoom-in"
-              onClick={onPreview}
-              type="button"
-            />
-          </>
+          <img
+            alt={`${selectedStyle.name} ${result.label} 결과`}
+            className={`h-full w-full object-cover ${result.className ?? ""}`}
+            src={result.imageUrl}
+            style={getMirrorImageStyle(isMirrored)}
+          />
         ) : (
-          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-4 bg-[#15130f] px-3 text-center font-semibold text-[#b8aa95]">
-            {result.isGenerating ? (
-              <NeonSpinner size={58} />
-            ) : null}
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[#15130f] px-2 text-center font-semibold text-[#b8aa95]">
+            {result.isGenerating ? <NeonSpinner size={40} /> : null}
             {result.error ? (
-              <span className="text-lg font-bold text-[#fffaf1]">생성 실패</span>
+              <span className="text-sm font-bold text-[#fffaf1]">생성 실패</span>
             ) : (
-              <span className="text-4xl font-black tabular-nums leading-none text-[#fffaf1]">
+              <span className="text-xl font-black tabular-nums leading-none text-[#fffaf1] sm:text-2xl">
                 {progress ?? 0}%
               </span>
             )}
             {progress !== undefined && !result.error ? (
               <GenerationProgressBar progress={progress} />
             ) : null}
-            <span className="text-sm font-semibold text-[#b8aa95]">생성 중</span>
-            {result.error ? (
-              <span className="max-w-52 text-xs leading-5 text-[#d8cbb8]">
-                자동 재시도 후 실패 · {getShortGenerationError(result.error)}
-              </span>
-            ) : null}
+            <span className="text-[10px] font-semibold text-[#b8aa95] sm:text-xs">
+              {result.error ? "다시 시도" : "생성 중"}
+            </span>
           </div>
         )}
-        <div
-          className={`pointer-events-none absolute inset-0 z-10 bg-gradient-to-b ${selectedStyle.accent} via-transparent to-[#0f0e0c]/80`}
-        />
-        <div className="pointer-events-none absolute left-2 top-2 z-30 rounded-md bg-[#11100e]/78 px-2 py-1 text-[11px] font-semibold text-[#f3d28a] sm:left-3 sm:top-3 sm:text-xs">
-          {result.label}
-        </div>
-        {result.imageUrl ? (
-          <div className="absolute right-2 top-2 z-40 flex flex-col gap-2 sm:right-3 sm:top-3">
-            <button
-              aria-label={`${selectedStyle.name} ${result.label} 이미지 저장`}
-              className="flex size-8 items-center justify-center rounded-md border border-white/12 bg-[#11100e]/78 text-[#fffaf1] backdrop-blur-sm transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a] sm:size-9"
-              onClick={() => {
-                if (!result.imageUrl) {
-                  return;
-                }
+      </button>
 
-                void downloadResultImage(
-                  result.imageUrl,
-                  `mirilook-${selectedStyle.id}-${result.label}.jpg`,
-                  { mirrored: isMirrored },
-                );
-              }}
-              title="이미지 저장"
-              type="button"
-            >
-              <Download aria-hidden="true" size={15} />
-            </button>
-            <button
-              aria-label={
-                isMirrored
-                  ? `${selectedStyle.name} ${result.label} 원본 방향 보기`
-                  : `${selectedStyle.name} ${result.label} 좌우 반전하기`
-              }
-              aria-pressed={isMirrored}
-              className={`flex size-8 items-center justify-center rounded-md border backdrop-blur-sm transition sm:size-9 ${
-                isMirrored
-                  ? "border-[#f3d28a] bg-[#f3d28a] text-[#171511]"
-                  : "border-white/12 bg-[#11100e]/78 text-[#fffaf1] hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
-              }`}
-              onClick={onToggleMirror}
-              title={isMirrored ? "원본 방향 보기" : "좌우 반전하기"}
-              type="button"
-            >
-              <Mirror180Icon size={26} />
-            </button>
-          </div>
-        ) : null}
-        <div className="pointer-events-none absolute bottom-2 left-2 right-2 z-30 text-xs font-semibold text-[#fffaf1] sm:bottom-3 sm:left-3 sm:right-3 sm:text-sm">
-          {selectedStyle.name}
+      {/* 3행: 저장 / 180도 회전 버튼(사진 아래) */}
+      {hasImage ? (
+        <div className="flex items-center gap-1.5 p-1.5">
+          <button
+            aria-label={`${selectedStyle.name} ${result.label} 이미지 저장`}
+            className="inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-md border border-[#c9a96a]/50 bg-[#171511] text-xs font-bold text-[#f3d28a] transition hover:bg-[#f3d28a]/10"
+            onClick={() => {
+              if (!result.imageUrl) return;
+              void downloadResultImage(
+                result.imageUrl,
+                `mirilook-${selectedStyle.id}-${result.label}.jpg`,
+                { mirrored: isMirrored },
+              );
+            }}
+            title="이미지 저장"
+            type="button"
+          >
+            <Download aria-hidden="true" size={14} /> 저장
+          </button>
+          <button
+            aria-label={
+              isMirrored
+                ? `${selectedStyle.name} ${result.label} 원본 방향 보기`
+                : `${selectedStyle.name} ${result.label} 좌우 반전하기`
+            }
+            aria-pressed={isMirrored}
+            className={`inline-flex size-8 shrink-0 items-center justify-center rounded-md border transition ${
+              isMirrored
+                ? "border-[#f3d28a] bg-[#f3d28a] text-[#171511]"
+                : "border-white/12 bg-[#171511] text-[#fffaf1] hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
+            }`}
+            onClick={onToggleMirror}
+            title={isMirrored ? "원본 방향 보기" : "좌우 반전하기"}
+            type="button"
+          >
+            <Mirror180Icon size={22} />
+          </button>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
@@ -10767,11 +10714,47 @@ function formatHistoryDate(createdAt: string) {
   }).format(date);
 }
 
-// blob을 모바일 갤러리 공유(navigator.share)로 저장하거나, 안 되면 같은출처 blob URL로
-// 다운로드한다. 교차출처 이미지 URL에 <a download>를 직접 걸면 앱 WebView가 다운로드 대신
+// 앱(Capacitor 웹뷰)에서 노출하는 네이티브 저장 브리지. 있으면 갤러리에 바로 저장한다.
+// 안드로이드 웹뷰는 navigator.share/<a download>로 blob 저장이 안 되므로 이 경로가 실기기의 주 저장 수단.
+type MirilookNativeBridge = {
+  saveImage: (base64: string, fileName: string, mimeType: string) => boolean;
+};
+function getMirilookNativeBridge(): MirilookNativeBridge | null {
+  if (typeof window === "undefined") return null;
+  const bridge = (window as unknown as { MirilookNative?: MirilookNativeBridge })
+    .MirilookNative;
+  return bridge && typeof bridge.saveImage === "function" ? bridge : null;
+}
+
+function blobToBase64(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("blob_read_failed"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+// blob을 저장한다. 우선순위: ①앱 네이티브 브리지(갤러리 직저장) → ②navigator.share(공유 시트)
+// → ③같은출처 blob URL 다운로드. 교차출처 이미지 URL에 <a download>를 직접 걸면 앱 웹뷰가
 // 페이지 이동을 해버려(=이탈 경고창, 저장 실패) 반드시 blob으로 변환한 뒤 처리한다.
 async function saveOrShareBlob(blob: Blob, fileName: string) {
   const type = blob.type || "image/jpeg";
+
+  // ① 앱 네이티브 저장 (실기기 우선)
+  const native = getMirilookNativeBridge();
+  if (native) {
+    try {
+      const base64 = await blobToBase64(blob);
+      if (native.saveImage(base64, fileName, type)) {
+        return;
+      }
+    } catch (error) {
+      console.warn("native save failed, falling back", error);
+    }
+  }
+
+  // ② Web Share API (파일 공유 지원 브라우저)
   if (typeof navigator !== "undefined" && typeof navigator.canShare === "function") {
     const file = new File([blob], fileName, { type });
     if (navigator.canShare({ files: [file] })) {
@@ -10786,6 +10769,7 @@ async function saveOrShareBlob(blob: Blob, fileName: string) {
     }
   }
 
+  // ③ 같은출처 blob URL 다운로드
   const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = objectUrl;
