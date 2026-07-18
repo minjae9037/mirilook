@@ -24,6 +24,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>얼굴 사진을 촬영해 어울리는 헤어스타일을 추천하는 데 사용합니다.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>헤어스타일 추천에 사용할 사진을 선택하기 위해 사진 접근이 필요합니다.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>추천·상담 결과 이미지를 사진 앱에 저장하기 위해 사용합니다.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
