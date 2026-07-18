@@ -842,6 +842,8 @@ export function MirilookStudio() {
   // 추천 카드에서 사진을 누르면 크게 보기(설명 포함) — 선택과는 분리된 상태.
   const [enlargedRecommendationId, setEnlargedRecommendationId] =
     useState<MirilookStyleId | null>(null);
+  // 사진 저장이 끝나면 2초짜리 "저장 완료" 토스트를 띄운다(모든 저장 버튼 공통).
+  const [showSavedToast, setShowSavedToast] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [renderedResults, setRenderedResults] = useState<RenderedResult[]>([]);
   // One recommendation cycle includes the first consultation set for free.
@@ -1072,6 +1074,21 @@ export function MirilookStudio() {
 
       createdUrls.forEach((url) => URL.revokeObjectURL(url));
       createdUrls.clear();
+    };
+  }, []);
+
+  // 저장 완료 이벤트 → "저장 완료" 토스트 2초 표시(연속 저장은 마지막 기준 2초).
+  useEffect(() => {
+    let hideTimer: number | undefined;
+    const handler = () => {
+      setShowSavedToast(true);
+      if (hideTimer) window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => setShowSavedToast(false), 2000);
+    };
+    window.addEventListener(IMAGE_SAVED_EVENT, handler);
+    return () => {
+      window.removeEventListener(IMAGE_SAVED_EVENT, handler);
+      if (hideTimer) window.clearTimeout(hideTimer);
     };
   }, []);
 
@@ -4069,6 +4086,38 @@ export function MirilookStudio() {
     }
   }
 
+  // 코디(전신+아이템) 이미지를 3x3 바둑판 한 장으로 저장.
+  async function downloadOutfitAsGrid() {
+    const gridItems: Array<{ url: string }> = [];
+    if (outfitFullBody.imageUrl) {
+      gridItems.push({ url: outfitFullBody.imageUrl });
+    }
+    outfitRecommendations.forEach((item) => {
+      if (item.imageUrl) {
+        gridItems.push({ url: item.imageUrl });
+      }
+    });
+
+    if (!gridItems.length) {
+      setStatusMessage("저장할 코디 이미지가 아직 없습니다.");
+      return;
+    }
+
+    const baseId = selectedStyle?.id ?? "outfit";
+    setIsSavingGrid(true);
+    setStatusMessage(`코디 이미지 ${gridItems.length}장을 3x3 한 장으로 저장합니다.`);
+
+    try {
+      await downloadImagesAsGrid(gridItems, `mirilook-${baseId}-코디-3x3.jpg`);
+      setStatusMessage(`코디 이미지 ${gridItems.length}장을 3x3 한 장으로 저장했습니다.`);
+    } catch (error) {
+      console.warn("outfit grid save failed", error);
+      setStatusMessage("3x3 한 장 저장에 실패했습니다. 개별 저장을 이용해 주세요.");
+    } finally {
+      setIsSavingGrid(false);
+    }
+  }
+
   function moveRenderedResultPreview(direction: -1 | 1) {
     setRenderedResultPreview((current) => {
       if (!current || !renderedResults.length) {
@@ -4461,6 +4510,7 @@ export function MirilookStudio() {
 
   return (
     <section className="w-full max-w-6xl overflow-x-clip rounded-lg border border-white/12 bg-[#171511]/88 p-4 shadow-2xl shadow-black/40 backdrop-blur md:p-5">
+      <SaveToast visible={showSavedToast} />
       <input
         accept="image/*"
         className="sr-only"
@@ -5152,6 +5202,21 @@ export function MirilookStudio() {
                   <Download aria-hidden="true" size={16} />
                 )}
                 모두 저장하기
+              </button>
+              <button
+                aria-label="코디 이미지 3x3 한 장으로 저장하기"
+                className="inline-flex h-10 items-center gap-2 rounded-md border border-[#c9a96a]/55 bg-[#171511] px-3 text-sm font-bold text-[#f3d28a] transition hover:bg-[#f3d28a]/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-[#8f826f]"
+                disabled={isSavingGrid || isDownloadingRenderedResults}
+                onClick={() => void downloadOutfitAsGrid()}
+                title="코디 이미지를 3x3 바둑판 한 장으로 저장"
+                type="button"
+              >
+                {isSavingGrid ? (
+                  <Loader2 aria-hidden="true" className="animate-spin" size={16} />
+                ) : (
+                  <LayoutGrid aria-hidden="true" size={16} />
+                )}
+                3x3 한 장 저장
               </button>
               <button
                 className="inline-flex h-10 items-center gap-2 rounded-md border border-[#c9a96a]/50 px-3 text-sm font-semibold text-[#f3d28a] transition hover:bg-[#f3d28a]/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-[#8f826f]"
@@ -6443,20 +6508,6 @@ function StyleExpansionResultPanel({
                         className="h-full w-full object-cover"
                         src={outfitFullBody.imageUrl}
                       />
-                    </button>
-                    <button
-                      aria-label={`${selectedStyle.name} 전신 코디 이미지 저장`}
-                      className="absolute right-3 top-3 z-20 flex size-9 items-center justify-center rounded-md border border-white/12 bg-[#11100e]/78 text-[#fffaf1] backdrop-blur-sm transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
-                      onClick={() =>
-                        void downloadResultImage(
-                          outfitFullBody.imageUrl ?? "",
-                          `mirilook-${selectedStyle.id}-full-outfit.jpg`,
-                        )
-                      }
-                      title="이미지 저장"
-                      type="button"
-                    >
-                      <Download aria-hidden="true" size={16} />
                     </button>
                   </>
                 ) : (
@@ -8237,6 +8288,28 @@ function HairColorPanel({
         </div>
       </div>
     </section>
+  );
+}
+
+// 저장 완료 토스트 — 화면 하단 중앙에 잠깐 떴다가 사라진다(2초는 부모가 제어).
+function SaveToast({ visible }: { visible: boolean }) {
+  const portalRoot = typeof document === "undefined" ? null : document.body;
+  if (!portalRoot || !visible) return null;
+
+  return createPortal(
+    <div
+      aria-live="polite"
+      className="pointer-events-none fixed inset-x-0 bottom-8 z-[2000] flex justify-center px-4"
+      role="status"
+    >
+      <div className="inline-flex items-center gap-2 rounded-full bg-[#171511] px-4 py-2.5 text-sm font-bold text-[#fffaf1] shadow-2xl shadow-black/50 ring-1 ring-[#f3d28a]/40">
+        <span className="flex size-6 items-center justify-center rounded-full bg-[#f3d28a] text-[#1a1712]">
+          <Check aria-hidden="true" size={15} />
+        </span>
+        갤러리에 저장했어요
+      </div>
+    </div>,
+    portalRoot,
   );
 }
 
@@ -10735,6 +10808,13 @@ function blobToBase64(blob: Blob) {
   });
 }
 
+// 저장이 실제로 완료된 순간 이벤트를 쏜다 → 화면 어디서든 "저장 완료" 토스트를 띄운다.
+const IMAGE_SAVED_EVENT = "mirilook:image-saved";
+function emitImageSaved() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(IMAGE_SAVED_EVENT));
+}
+
 // blob을 저장한다. 우선순위: ①앱 네이티브 브리지(갤러리 직저장) → ②navigator.share(공유 시트)
 // → ③같은출처 blob URL 다운로드. 교차출처 이미지 URL에 <a download>를 직접 걸면 앱 웹뷰가
 // 페이지 이동을 해버려(=이탈 경고창, 저장 실패) 반드시 blob으로 변환한 뒤 처리한다.
@@ -10747,6 +10827,7 @@ async function saveOrShareBlob(blob: Blob, fileName: string) {
     try {
       const base64 = await blobToBase64(blob);
       if (native.saveImage(base64, fileName, type)) {
+        emitImageSaved();
         return;
       }
     } catch (error) {
@@ -10760,6 +10841,7 @@ async function saveOrShareBlob(blob: Blob, fileName: string) {
     if (navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({ files: [file] });
+        emitImageSaved();
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -10779,6 +10861,7 @@ async function saveOrShareBlob(blob: Blob, fileName: string) {
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  emitImageSaved();
 }
 
 async function downloadResultImage(
