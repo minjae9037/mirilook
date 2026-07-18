@@ -30,8 +30,9 @@ android {
         // 2 = 런처 아이콘·스플래시 핑크 브랜딩 반영
         // 3 = 아이콘 전경 75%로 확대 (원본 자체 여백 5.8%에 안전영역 축소가 이중 적용돼
         //     PWA 아이콘보다 작아 보이던 문제. 75% x 88.6% = 66.5% = 안전영역 정합)
-        versionCode 3
-        versionName "1.0.2"
+        // 4 = 갤러리 저장 네이티브 브리지(MirilookNative.saveImage/MediaStore) 추가
+        versionCode 4
+        versionName "1.0.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
