@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server";
-import { getHairColorById } from "@/lib/mirilook-colors";
+import { resolveRequestedHairColor } from "@/lib/mirilook-colors";
 import {
   getRegionProfile,
   sanitizeRegion,
@@ -18,9 +18,13 @@ import {
   getFinalImageProvider,
 } from "@/lib/server/final-image-renderer";
 import { protectMutationRequest } from "@/lib/server/request-security";
+import { logGenerationError } from "@/lib/server/generation-error-log";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// gpt-image 각도 생성은 스테이지 레퍼런스가 많을 때 60초를 넘겨 Vercel 504
+// (FUNCTION_INVOCATION_TIMEOUT)로 죽곤 했다. 상한을 넉넉히 두어 생성이 끝날 때까지
+// 기다린다(상한일 뿐 빠른 요청은 즉시 반환). Trigger 잡 maxDuration(900초) 예산 내.
+export const maxDuration = 180;
 
 type AnglePhotoSlot = "left" | "front" | "right" | "side";
 
@@ -69,6 +73,7 @@ export async function POST(request: Request) {
       .slice(0, 9);
     const styleId = getString(formData.get("styleId"));
     const hairColorId = getString(formData.get("hairColorId"));
+    const customHairColorHex = getString(formData.get("customHairColorHex"));
     const audience = sanitizeAudience(formData.get("audience"));
     const region = sanitizeRegion(formData.get("region"));
     const styleMemo = sanitizeStyleMemo(formData.get("styleMemo"));
@@ -80,8 +85,7 @@ export async function POST(request: Request) {
       formData,
       styleId,
     });
-    const hairColor =
-      getHairColorById(hairColorId) ?? getHairColorById("natural-black");
+    const hairColor = resolveRequestedHairColor(hairColorId, customHairColorHex);
     const angle = resultAngles[angleIndex];
     durationContext = {
       angleIndex,
@@ -180,6 +184,18 @@ export async function POST(request: Request) {
       ...durationContext,
       error: getErrorMessage(error),
       status: "error",
+    });
+
+    // 자동 디버깅 에이전트가 반복 에러를 분석할 수 있게 정식 로그에 적재(best-effort).
+    await logGenerationError({
+      source: "angle",
+      error,
+      assetType: "final_angle",
+      angleIndex:
+        typeof durationContext.angleIndex === "number"
+          ? durationContext.angleIndex
+          : null,
+      context: durationContext,
     });
 
     return NextResponse.json(

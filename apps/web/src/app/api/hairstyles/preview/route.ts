@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server";
-import { getHairColorById } from "@/lib/mirilook-colors";
+import { resolveRequestedHairColor } from "@/lib/mirilook-colors";
 import {
   getRegionProfile,
   sanitizeRegion,
@@ -14,9 +14,11 @@ import {
 } from "@/lib/mirilook-styles";
 import { editHairImage } from "@/lib/server/openai-image";
 import { protectMutationRequest } from "@/lib/server/request-security";
+import { logGenerationError } from "@/lib/server/generation-error-log";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// gpt-image 프리뷰 생성이 60초를 넘겨 Vercel 504로 죽는 것을 방지(상한 상향).
+export const maxDuration = 180;
 
 export async function POST(request: Request) {
   const startedAt = Date.now();
@@ -53,6 +55,7 @@ export async function POST(request: Request) {
       .slice(0, 9);
     const styleId = getString(formData.get("styleId"));
     const hairColorId = getString(formData.get("hairColorId"));
+    const customHairColorHex = getString(formData.get("customHairColorHex"));
     const audience = sanitizeAudience(formData.get("audience"));
     const region = sanitizeRegion(formData.get("region"));
     const styleMemo = sanitizeStyleMemo(formData.get("styleMemo"));
@@ -63,8 +66,7 @@ export async function POST(request: Request) {
       formData,
       styleId,
     });
-    const hairColor =
-      getHairColorById(hairColorId) ?? getHairColorById("natural-black");
+    const hairColor = resolveRequestedHairColor(hairColorId, customHairColorHex);
     durationContext = {
       audience,
       celebrityReferenceCount: celebrityReferences.length,
@@ -132,6 +134,13 @@ export async function POST(request: Request) {
       ...durationContext,
       error: getErrorMessage(error),
       status: "error",
+    });
+
+    await logGenerationError({
+      source: "preview",
+      error,
+      assetType: "recommendation_preview",
+      context: durationContext,
     });
 
     return NextResponse.json(

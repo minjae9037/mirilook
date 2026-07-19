@@ -79,7 +79,8 @@ export async function POST(request: Request) {
   const memo = clampText(body.memo, 300);
   const { monthLabel, season } = resolveSeason(body.date);
 
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  // maxRetries: 429 레이트리밋을 SDK가 자동 백오프 재시도(무과금 안전망).
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 4 });
   const model = process.env.OPENAI_RECOMMENDATION_MODEL ?? "gpt-4.1-mini";
 
   try {
@@ -158,6 +159,8 @@ function buildPrompt({
 [규칙]
 - ${season} 계절에 맞는 소재·기장·레이어링·색감으로 제안하세요(예: 여름=린넨/반팔/얇은 소재, 겨울=니트/코트/보온).
 - 선택한 헤어스타일과 컬러의 분위기를 살리도록(얼굴 주변 라인, 톤 매칭) 추천하세요.
+- 색은 베이지·아이보리 같은 무난한 무채색으로만 몰지 말고, 헤어 컬러(${hairColorName || "지정 안 됨"})와 어울리는 포인트 컬러를 적극 제안해 매번 비슷해 보이지 않게 하세요.
+- ${genderLabel} 성별에 맞는 아이템만 추천하세요(남성에게 여성 전용, 여성에게 남성 전용 아이템 금지).
 - 고객 메모가 있으면 그 상황/취향을 우선 반영하세요.
 - 정확히 8개 항목을 추천하되, 각 항목의 id는 아래 목록에서만 선택하세요(중복 금지).
 - id 목록: top(상의), bottom(하의), glasses(안경), shoes(신발), bag(가방), watch(시계), bracelet(팔찌), necklace(목걸이), earrings(귀걸이), hat(모자), sunglasses(선글라스), earphones(이어폰), circle-lens(서클렌즈)

@@ -44,6 +44,8 @@ import {
   X,
 } from "lucide-react";
 import {
+  buildCustomHairColorPrompt,
+  getHairColorById,
   hairColorChartColumns,
   hairColorChartRows,
   hairColorChoices,
@@ -830,6 +832,11 @@ export function MirilookStudio() {
   // 직접 고르기(색상 휠)로 고른 임의 색. 설정되면 프리셋 대신 이 색을 헤어 컬러로 사용.
   const [customHairColorHex, setCustomHairColorHex] = useState<string | null>(null);
   const [colorMode, setColorMode] = useState<"palette" | "custom">("custom");
+  // 색상 스텝: "적용하기"를 누르기 전 임시 선택값(초안). 적용해야 실제 헤어 컬러로 반영된다.
+  const [customColorDraft, setCustomColorDraft] = useState("#a06a3f");
+  const [paletteColorDraft, setPaletteColorDraft] = useState<string | null>(null);
+  // 적용 직후 사용자에게 "이 색이 반영됩니다"를 확실히 알리는 배너 문구.
+  const [colorAppliedNotice, setColorAppliedNotice] = useState<string | null>(null);
   // 스타일 투표 게시 모달 상태.
   const [voteModalOpen, setVoteModalOpen] = useState(false);
   const [voteAudience, setVoteAudience] = useState<"all" | "opposite">("all");
@@ -2030,7 +2037,7 @@ export function MirilookStudio() {
         appendStylePayload(
           formData,
           style,
-          selectedHairColor.id,
+          selectedHairColor,
           styleMemo,
           consultingFocusIds,
           mode,
@@ -2271,6 +2278,36 @@ export function MirilookStudio() {
     resetCurrentConsultationIdentity();
     setShareUrl("");
     setStatusMessage("헤어 컬러가 반영되었습니다. 추천 받기를 눌러주세요.");
+  }
+
+  // "적용하기"(팔레트): 초안으로 골라둔 프리셋 색을 실제 헤어 컬러로 확정한다.
+  function applyPaletteHairColor() {
+    if (!paletteColorDraft) {
+      setStatusMessage("팔레트에서 원하는 색상을 먼저 선택해 주세요.");
+      return;
+    }
+
+    selectHairColor(paletteColorDraft);
+    const name = getHairColorById(paletteColorDraft)?.name ?? "선택한 색";
+    setColorAppliedNotice(
+      `${name} 컬러가 헤어 컬러로 적용되었습니다. 추천·상담 이미지에 이 색이 반영됩니다.`,
+    );
+  }
+
+  // "적용하기"(직접 고르기): 색상 휠 초안 hex를 실제 헤어 컬러로 확정한다.
+  function applyCustomHairColor() {
+    const hex = customColorDraft.toUpperCase();
+    setCustomHairColorHex(hex);
+    setColorMode("custom");
+    setAnalysisReady(false);
+    setSelectedStyleId(null);
+    setRenderedResults([]);
+    resetCurrentConsultationIdentity();
+    setShareUrl("");
+    setColorAppliedNotice(
+      `직접 고른 색(${hex})이 헤어 컬러로 적용되었습니다. 추천·상담 이미지에 이 색이 반영됩니다.`,
+    );
+    setStatusMessage("헤어 컬러가 적용되었습니다. 추천 받기를 눌러주세요.");
   }
 
   function updateStyleMemo(value: string) {
@@ -2767,7 +2804,7 @@ export function MirilookStudio() {
     }
 
     formData.append("audience", selectedAudience);
-    formData.append("hairColorId", selectedHairColor.id);
+    appendHairColorPayload(formData, selectedHairColor);
     formData.append("outfitPart", outfitPart);
     formData.append("query", query);
     formData.append("region", selectedRegion);
@@ -3594,7 +3631,7 @@ export function MirilookStudio() {
     appendStylePayload(
       formData,
       style,
-      selectedHairColor.id,
+      selectedHairColor,
       styleMemo,
       consultingFocusIds,
       recommendationMode,
@@ -4763,22 +4800,83 @@ export function MirilookStudio() {
             </button>
           </div>
 
+          {/* 현재 적용된(=생성에 반영될) 헤어 컬러 배너 — 뭘 고른 건지 항상 명확히 보여준다. */}
+          <div
+            className={`flex items-center gap-3 rounded-md border p-3 transition ${
+              colorAppliedNotice
+                ? "border-[#f3d28a]/70 bg-[#30271a]/60"
+                : "border-[#2b281f] bg-[#0f0e0c]/72"
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className="h-9 w-9 shrink-0 rounded-full border border-white/25 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
+              style={{ backgroundColor: selectedHairColor.swatch }}
+            />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-[#b8aa95]">
+                현재 적용된 헤어 컬러
+              </p>
+              <p className="truncate text-sm font-bold text-[#fffaf1]">
+                {selectedHairColor.name}
+              </p>
+            </div>
+          </div>
+          {colorAppliedNotice ? (
+            <p className="-mt-2 text-xs font-semibold leading-5 text-[#f3d28a]">
+              {colorAppliedNotice}
+            </p>
+          ) : null}
+
           {colorMode === "custom" ? (
             <div className="rounded-md border border-[#2b281f] bg-[#171511]/92 p-4">
               <p className="mb-4 text-sm leading-6 text-[#b8aa95]">
-                휠을 마우스나 손으로 움직여 원하는 색을 고르세요. 고른 색이 헤어
-                컬러로 반영됩니다.
+                휠을 마우스나 손으로 움직여 원하는 색을 고른 뒤, 아래{" "}
+                <span className="font-bold text-[#f3d28a]">적용하기</span>를
+                누르면 그 색이 헤어 컬러로 반영됩니다.
               </p>
               <MirilookColorWheel
-                onChange={(hex) => setCustomHairColorHex(hex)}
-                value={customHairColorHex ?? "#a06a3f"}
+                onChange={(hex) => setCustomColorDraft(hex)}
+                value={customColorDraft}
               />
+              <div className="mt-4 flex items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  className="h-8 w-8 shrink-0 rounded-full border border-white/25"
+                  style={{ backgroundColor: customColorDraft }}
+                />
+                <span className="text-xs font-semibold text-[#b8aa95]">
+                  선택한 색 {customColorDraft.toUpperCase()}
+                </span>
+              </div>
+              <button
+                className="mt-3 w-full rounded-md bg-[#f3d28a] px-4 py-3 text-sm font-black text-[#171511] transition hover:bg-[#ffdf98]"
+                onClick={applyCustomHairColor}
+                type="button"
+              >
+                이 색상으로 적용하기
+              </button>
             </div>
           ) : (
-            <HairColorPanel
-              onSelect={selectHairColor}
-              selectedColorId={selectedHairColorId}
-            />
+            <div className="grid gap-3">
+              <HairColorPanel
+                onSelect={setPaletteColorDraft}
+                selectedColorId={
+                  paletteColorDraft ??
+                  (customHairColorHex ? "" : selectedHairColorId)
+                }
+              />
+              <button
+                className="w-full rounded-md bg-[#f3d28a] px-4 py-3 text-sm font-black text-[#171511] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:bg-[#4a412e] disabled:text-[#b8aa95]"
+                disabled={!paletteColorDraft}
+                onClick={applyPaletteHairColor}
+                type="button"
+              >
+                {paletteColorDraft
+                  ? `${getHairColorById(paletteColorDraft)?.name ?? "선택한 색"} 적용하기`
+                  : "팔레트에서 색을 먼저 선택하세요"}
+              </button>
+            </div>
           )}
           {showPersonalConsultPanel ? (
             <PersonalConsultPanel
@@ -9240,10 +9338,24 @@ function buildNaverShoppingUrl(query: string) {
   return `https://search.shopping.naver.com/search/all?query=${encodeURIComponent(query)}`;
 }
 
+// 헤어 컬러를 요청에 싣는다. 팔레트 색은 id만으로 서버가 프리셋을 찾지만,
+// 직접 고르기(id="custom")는 hex(swatch)를 함께 보내야 서버가 그 색으로 생성한다.
+// (이게 없으면 서버가 custom을 못 찾아 natural-black으로 폴백해 선택색이 무시됨.)
+function appendHairColorPayload(
+  formData: FormData,
+  hairColor: Pick<HairColorChoice, "id" | "swatch">,
+) {
+  formData.append("hairColorId", hairColor.id);
+
+  if (hairColor.id === "custom" && hairColor.swatch) {
+    formData.append("customHairColorHex", hairColor.swatch);
+  }
+}
+
 function appendStylePayload(
   formData: FormData,
   style: DisplayRecommendation,
-  hairColorId: string,
+  hairColor: Pick<HairColorChoice, "id" | "swatch">,
   styleMemo: string,
   consultingFocusIds: ConsultingFocusId[],
   recommendationMode: RecommendationModeId,
@@ -9253,7 +9365,7 @@ function appendStylePayload(
   celebrityReferenceGroups: CelebrityReferenceGroup[] = [],
 ) {
   formData.append("styleId", style.id);
-  formData.append("hairColorId", hairColorId);
+  appendHairColorPayload(formData, hairColor);
 
   if (style.isCelebrityReference || isCelebrityReferenceStyleId(style.id)) {
     formData.append("customStyleName", style.name);
@@ -9559,46 +9671,6 @@ function buildRecommendationCompositionLabel(referenceCount: number) {
   const regularCount = Math.max(0, 9 - cappedReferenceCount);
 
   return `일반 추천 ${regularCount}개와 연예인 레퍼런스 추천 ${cappedReferenceCount}개`;
-}
-
-// 직접 고른 hex 색을 AI가 확실히 반영하도록 강한 지시문을 만든다.
-// 채도가 높은(파랑·초록·보라 등 패션 컬러) 경우 "natural" 문구가 색을 죽여버리므로
-// 반드시 그 색으로 염색하라고 못박고, 은은한 톤은 자연스럽게 표현하도록 분기한다.
-function buildCustomHairColorPrompt(hex: string) {
-  const clean = hex.toUpperCase();
-  const { r, g, b } = hexToRgbChannels(clean);
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const saturation = max === 0 ? 0 : (max - min) / max;
-  const isVivid = saturation >= 0.45 && max >= 90;
-
-  if (isVivid) {
-    return [
-      `The hair MUST be dyed exactly this color: HEX ${clean} (RGB ${r}, ${g}, ${b}).`,
-      "This is an intentional bold fashion hair-dye color chosen by the user.",
-      "Apply it as a full, saturated, all-over dye across every strand of hair.",
-      "Do NOT convert it to a natural brown/black, do NOT desaturate it, and do NOT treat it as a subtle tint or highlight — the whole head of hair should clearly read as this exact color.",
-      "Keep realistic hair texture, shine and shadow, but the base color must match this HEX.",
-    ].join(" ");
-  }
-
-  return [
-    `Dye the hair to this exact color: HEX ${clean} (RGB ${r}, ${g}, ${b}).`,
-    "Apply it as an even, all-over hair color across all strands.",
-    "Match this precise tone as closely as possible, keeping it salon-realistic with natural lighting, texture and shine. Do not shift it toward a different color family.",
-  ].join(" ");
-}
-
-function hexToRgbChannels(hex: string) {
-  const match = hex
-    .trim()
-    .match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
-  if (!match) return { r: 0, g: 0, b: 0 };
-  return {
-    r: parseInt(match[1], 16),
-    g: parseInt(match[2], 16),
-    b: parseInt(match[3], 16),
-  };
 }
 
 function applyHairColor(

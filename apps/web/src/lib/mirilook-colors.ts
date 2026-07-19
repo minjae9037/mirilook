@@ -350,3 +350,76 @@ export const hairColorChoices: HairColorChoice[] = hairColorChartRows.flatMap(
 export function getHairColorById(id: string) {
   return hairColorChoices.find((color) => color.id === id);
 }
+
+const hexColorPattern = /^#?([a-f\d]{6})$/i;
+
+export function isHexColor(value: string | null | undefined): value is string {
+  return typeof value === "string" && hexColorPattern.test(value.trim());
+}
+
+function normalizeHex(hex: string) {
+  const match = hex.trim().match(hexColorPattern);
+  return `#${(match?.[1] ?? "000000").toUpperCase()}`;
+}
+
+function hexToRgbChannels(hex: string) {
+  const clean = normalizeHex(hex).slice(1);
+  return {
+    r: parseInt(clean.slice(0, 2), 16),
+    g: parseInt(clean.slice(2, 4), 16),
+    b: parseInt(clean.slice(4, 6), 16),
+  };
+}
+
+// 직접 고른 hex 색을 AI가 확실히 반영하도록 강한 지시문을 만든다.
+// 채도가 높은(파랑·초록·보라 등 패션 컬러) 경우 "natural" 문구가 색을 죽여버리므로
+// 반드시 그 색으로 염색하라고 못박고, 은은한 톤은 자연스럽게 표현하도록 분기한다.
+export function buildCustomHairColorPrompt(hex: string) {
+  const clean = normalizeHex(hex);
+  const { r, g, b } = hexToRgbChannels(clean);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const saturation = max === 0 ? 0 : (max - min) / max;
+  const isVivid = saturation >= 0.45 && max >= 90;
+
+  if (isVivid) {
+    return [
+      `The hair MUST be dyed exactly this color: HEX ${clean} (RGB ${r}, ${g}, ${b}).`,
+      "This is an intentional bold fashion hair-dye color chosen by the user.",
+      "Apply it as a full, saturated, all-over dye across every strand of hair.",
+      "Do NOT convert it to a natural brown/black, do NOT desaturate it, and do NOT treat it as a subtle tint or highlight — the whole head of hair should clearly read as this exact color.",
+      "Keep realistic hair texture, shine and shadow, but the base color must match this HEX.",
+    ].join(" ");
+  }
+
+  return [
+    `Dye the hair to this exact color: HEX ${clean} (RGB ${r}, ${g}, ${b}).`,
+    "Apply it as an even, all-over hair color across all strands.",
+    "Match this precise tone as closely as possible, keeping it salon-realistic with natural lighting, texture and shine. Do not shift it toward a different color family.",
+  ].join(" ");
+}
+
+// 직접 고르기(색상 휠) hex → HairColorChoice. id는 "custom"으로 고정한다.
+export function buildCustomHairColorChoice(hex: string): HairColorChoice {
+  const clean = normalizeHex(hex);
+
+  return {
+    id: "custom",
+    name: `직접 선택 (${clean})`,
+    prompt: buildCustomHairColorPrompt(clean),
+    swatch: clean,
+  };
+}
+
+// 생성 라우트 공용: 팔레트 id면 프리셋을, "custom"+유효 hex면 커스텀 컬러를 돌려준다.
+// 커스텀 hex가 없거나 잘못되면 자연 흑발로 안전 폴백.
+export function resolveRequestedHairColor(
+  hairColorId: string,
+  customHairColorHex?: string | null,
+): HairColorChoice {
+  if (hairColorId === "custom" && isHexColor(customHairColorHex)) {
+    return buildCustomHairColorChoice(customHairColorHex);
+  }
+
+  return getHairColorById(hairColorId) ?? getHairColorById("natural-black")!;
+}
