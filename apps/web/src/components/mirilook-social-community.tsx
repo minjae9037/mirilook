@@ -2495,8 +2495,9 @@ function SocialPostCard({
           </div>
         ) : null}
 
-        {/* 액션 버튼 — 한글 라벨 제거(아이콘+숫자만), flex-1 균등분할로 화면폭과 무관하게 항상 1행. */}
-        <div className="flex items-center gap-1.5">
+        {/* 액션 버튼 — 반응(1행)과 상호작용(DM/신고/차단, 2행)으로 분리해 모바일에서도 안 잘리게. */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5">
           <button
             aria-label={`좋아요 ${post.likeCount}`}
             className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-xs font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
@@ -2537,27 +2538,31 @@ function SocialPostCard({
             <MessageSquareText aria-hidden="true" size={15} />
             {post.commentCount}
           </button>
+          </div>
+          <div className="flex items-center gap-1.5">
           <button
             aria-label="DM"
-            className="inline-flex flex-1 items-center justify-center rounded-md border border-[#f3d28a]/35 bg-[#2d2414] px-2 py-1.5 text-[#f3d28a] transition hover:bg-[#3a2e18] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex flex-1 min-w-0 items-center justify-center gap-1 rounded-md border border-[#f3d28a]/35 bg-[#2d2414] px-2 py-1.5 text-xs font-semibold text-[#f3d28a] transition hover:bg-[#3a2e18] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={post.dmPolicy === "deny"}
             onClick={() => setIsDmOpen((current) => !current)}
             type="button"
           >
             {isDmOpen ? <X aria-hidden="true" size={15} /> : <MessageCircle aria-hidden="true" size={15} />}
+            DM
           </button>
           <button
             aria-label="신고"
-            className="inline-flex flex-1 items-center justify-center rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
+            className="inline-flex flex-1 min-w-0 items-center justify-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-xs font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
             onClick={() => setIsReportOpen((current) => !current)}
             type="button"
           >
             <Flag aria-hidden="true" size={15} />
+            신고
           </button>
           {post.profileId && post.profileId !== currentProfileId ? (
             <button
               aria-label="이 이용자 차단"
-              className="inline-flex flex-1 items-center justify-center rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-[#d8cbb8] transition hover:border-[#ff7a7a]/60 hover:text-[#ff9a9a]"
+              className="inline-flex flex-1 min-w-0 items-center justify-center gap-1 rounded-md border border-[#ff7a7a]/35 bg-[#2a1411] px-2 py-1.5 text-xs font-semibold text-[#ff9a9a] transition hover:bg-[#391c17]"
               onClick={() => {
                 if (
                   window.confirm(
@@ -2570,8 +2575,10 @@ function SocialPostCard({
               type="button"
             >
               <Ban aria-hidden="true" size={15} />
+              차단
             </button>
           ) : null}
+          </div>
         </div>
 
         {isShareOpen ? (
