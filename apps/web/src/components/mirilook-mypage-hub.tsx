@@ -6,9 +6,11 @@
 import Link from "next/link";
 import {
   ArrowLeft,
+  Ban,
   Bell,
   ChevronRight,
   FileText,
+  Flag,
   HeartHandshake,
   KeyRound,
   ScrollText,
@@ -17,14 +19,18 @@ import {
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { MirilookAccountDeletion } from "@/components/mirilook-account-deletion";
+import { MirilookBlockedMembers } from "@/components/mirilook-blocked-members";
 import { MirilookHistoryManager } from "@/components/mirilook-history-manager";
 import { MirilookNotificationPreferences } from "@/components/mirilook-notification-preferences";
 import { MirilookPasswordSettings } from "@/components/mirilook-password-settings";
 import { MirilookProfilePanel } from "@/components/mirilook-profile-panel";
+import { MirilookReportHistory } from "@/components/mirilook-report-history";
 
 type DetailView =
   | "profile"
   | "history"
+  | "blocked"
+  | "reports"
   | "notifications"
   | "password"
   | "account";
@@ -33,6 +39,8 @@ type View = "hub" | DetailView;
 const VIEW_TITLE: Record<DetailView, string> = {
   profile: "프로필 관리",
   history: "내 상담 기록 · 매칭",
+  blocked: "차단한 회원 관리",
+  reports: "신고 이력",
   notifications: "알림 설정",
   password: "비밀번호 변경",
   account: "계정 관리",
@@ -50,6 +58,8 @@ export function MirilookMyPageHub() {
       <BackBar title={VIEW_TITLE[view]} onBack={() => setView("hub")} />
       {view === "profile" ? <MirilookProfilePanel /> : null}
       {view === "history" ? <MirilookHistoryManager /> : null}
+      {view === "blocked" ? <MirilookBlockedMembers /> : null}
+      {view === "reports" ? <MirilookReportHistory /> : null}
       {view === "notifications" ? <MirilookNotificationPreferences /> : null}
       {view === "password" ? <MirilookPasswordSettings /> : null}
       {view === "account" ? <MirilookAccountDeletion /> : null}
@@ -75,6 +85,21 @@ function Hub({ onSelect }: { onSelect: (view: DetailView) => void }) {
           label="상담 기록 · 나의 매칭"
           description="추천 히스토리, H머니 내역, 매칭"
           onClick={() => onSelect("history")}
+        />
+      </MenuGroup>
+
+      <MenuGroup title="커뮤니티 관리">
+        <MenuRow
+          icon={<Ban size={18} />}
+          label="차단한 회원"
+          description="차단 목록 확인 · 차단 해제"
+          onClick={() => onSelect("blocked")}
+        />
+        <MenuRow
+          icon={<Flag size={18} />}
+          label="신고 이력"
+          description="내가 접수한 신고와 처리 상태"
+          onClick={() => onSelect("reports")}
         />
       </MenuGroup>
 

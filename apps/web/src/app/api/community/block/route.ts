@@ -35,25 +35,60 @@ export async function GET(request: Request) {
   const user = await getVerifiedSupabaseUser(request);
 
   if (!supabase || !user) {
-    return Response.json({ blockedIds: [] });
+    return Response.json({ blocked: [], blockedIds: [] });
   }
 
   const result = await supabase
     .from("user_blocks")
-    .select("blocked_id")
-    .eq("blocker_id", user.id);
+    .select("blocked_id, created_at")
+    .eq("blocker_id", user.id)
+    .order("created_at", { ascending: false });
 
   if (result.error) {
     console.error("blocked list load failed", result.error);
 
-    return Response.json({ blockedIds: [] });
+    return Response.json({ blocked: [], blockedIds: [] });
   }
 
-  const blockedIds = (result.data ?? [])
-    .map((row) => (row as { blocked_id: string | null }).blocked_id)
+  const rows = (result.data ?? []) as Array<{
+    blocked_id: string | null;
+    created_at: string | null;
+  }>;
+  const blockedIds = rows
+    .map((row) => row.blocked_id)
     .filter((id): id is string => Boolean(id));
 
-  return Response.json({ blockedIds });
+  // 차단한 회원의 표시 이름/핸들을 붙여 마이페이지에서 관리(차단 해제)할 수 있게 한다.
+  const profileMap = new Map<string, { display_name: string | null; handle: string | null }>();
+
+  if (blockedIds.length) {
+    const profiles = await supabase
+      .from("profiles")
+      .select("id, display_name, handle")
+      .in("id", blockedIds);
+
+    for (const profile of profiles.data ?? []) {
+      const row = profile as {
+        id: string;
+        display_name: string | null;
+        handle: string | null;
+      };
+      profileMap.set(row.id, { display_name: row.display_name, handle: row.handle });
+    }
+  }
+
+  const blocked = rows
+    .filter((row): row is { blocked_id: string; created_at: string | null } =>
+      Boolean(row.blocked_id),
+    )
+    .map((row) => ({
+      blockedAt: row.created_at,
+      displayName: profileMap.get(row.blocked_id)?.display_name || "미리룩 회원",
+      handle: profileMap.get(row.blocked_id)?.handle || "",
+      id: row.blocked_id,
+    }));
+
+  return Response.json({ blocked, blockedIds });
 }
 
 export async function POST(request: Request) {
