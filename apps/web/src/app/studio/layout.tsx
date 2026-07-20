@@ -6,6 +6,8 @@ import { useEffect, useSyncExternalStore } from "react";
 import { AlertTriangle, Moon, Sun } from "lucide-react";
 import { MirilookBrandLogo } from "@/components/mirilook-brand-logo";
 import { MirilookStudio } from "@/components/mirilook-studio";
+import { MirilookStudioTeaser } from "@/components/mirilook-studio-teaser";
+import { useMirilookSession } from "@/lib/mirilook-session";
 import {
   STUDIO_PROGRESS,
   stepFromPathname,
@@ -62,7 +64,10 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
   const dark = theme === "dark";
   const pathname = usePathname();
   const step = stepFromPathname(pathname);
-  const guarded = shouldGuardRefresh(step);
+  const session = useMirilookSession();
+  // 미로그인이면 스튜디오를 블러 맛보기로만 보여준다(하단 내비 "둘러보기"의 착지점).
+  const teasing = session === "gated";
+  const guarded = shouldGuardRefresh(step) && !teasing;
 
   // 새로고침/이탈 가드: 브라우저 기본 확인창을 띄운다(문구는 브라우저가 고정 — 인페이지 안내로 보완).
   useEffect(() => {
@@ -87,7 +92,8 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
   return (
     <main className="min-h-screen w-full" style={{ background: pageBg, color: ink }}>
       <style>{`body > footer{display:none!important}`}</style>
-      <div className="mx-auto w-full max-w-6xl px-5 py-5 sm:px-6">
+      {/* pt-[env(safe-area-inset-top)]: 앱 상태바/노치에 상단바가 붙지 않도록 안전영역 확보. */}
+      <div className="mx-auto w-full max-w-6xl px-5 py-5 pt-[calc(1.25rem+env(safe-area-inset-top))] sm:px-6">
         <div className="mb-4 flex items-center justify-between gap-3">
           <MirilookBrandLogo />
 
@@ -158,7 +164,13 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
           </div>
         ) : null}
 
-        <MirilookStudio />
+        {teasing ? (
+          <MirilookStudioTeaser dark={dark} pageBg={pageBg}>
+            <MirilookStudio />
+          </MirilookStudioTeaser>
+        ) : (
+          <MirilookStudio />
+        )}
         {children}
       </div>
     </main>

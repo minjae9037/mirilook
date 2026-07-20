@@ -1,7 +1,8 @@
-﻿import type { Metadata } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { MirilookBottomNav } from "@/components/mirilook-bottom-nav";
+import { MirilookInAppBrowserNotice } from "@/components/mirilook-inapp-browser-notice";
 import { MirilookLegalFooter } from "@/components/mirilook-legal-footer";
 import { MirilookLanguageRuntime } from "@/components/mirilook-language-runtime";
 import { MirilookMobileAppPrompt } from "@/components/mirilook-mobile-app-prompt";
@@ -11,7 +12,6 @@ const siteUrl = "https://mirilook.com";
 const siteTitle = "Miri Look | AI 헤어스타일 추천";
 const siteDescription =
   "내 얼굴 사진을 바탕으로 어울리는 헤어컷과 컬러를 추천하고, 미용사 상담용 이미지를 생성합니다.";
-const ADSENSE_CLIENT = "ca-pub-8033046631376018";
 const THEME_BOOT_SCRIPT = `
 (() => {
   try {
@@ -79,13 +79,19 @@ const SITE_LD = {
   ],
 };
 
+// 앱(Capacitor WebView)에서 상단바가 iOS 상태바에 바짝 붙어 눌리지 않던 문제 대응.
+// viewport-fit=cover로 env(safe-area-inset-*)를 활성화하고, 상단 내비(MirilookMainNav)와
+// 하단 내비에서 각각 안전영역만큼 여백을 준다.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   manifest: "/manifest.webmanifest",
   applicationName: "Miri Look",
-  other: {
-    "google-adsense-account": ADSENSE_CLIENT, // 애드센스 사이트 소유 확인용 메타태그
-  },
   title: {
     default: siteTitle,
     template: "%s | Miri Look",
@@ -164,17 +170,12 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_LD) }}
         />
-        <script
-          async
-          crossOrigin="anonymous"
-          id="google-adsense"
-          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
-        />
         {children}
         <MirilookLanguageRuntime />
         <MirilookLegalFooter />
         <MirilookBottomNav />
         <MirilookMobileAppPrompt />
+        <MirilookInAppBrowserNotice />
         <Analytics />
         <SpeedInsights />
       </body>

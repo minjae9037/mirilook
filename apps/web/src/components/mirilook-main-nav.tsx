@@ -55,7 +55,9 @@ export function MirilookMainNav() {
     "inline-flex shrink-0 items-center gap-2 rounded-md border border-[#c9a96a]/45 px-3 py-2 text-sm font-semibold text-[#f3d28a] transition hover:bg-[#f3d28a]/10";
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+    // pt-[env(safe-area-inset-top)]: 앱(WebView)에서 상단바가 iOS 상태바/노치에 붙어
+    // 버튼이 안 눌리던 문제 대응 — 안전영역만큼 아래로 내린다. 웹/데스크톱은 inset 0이라 영향 없음.
+    <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-[env(safe-area-inset-top)]">
       {/* 좌측: 브랜드 + 주요 링크(데스크톱). 링크를 미리룩 제목 바로 오른쪽에 둔다. */}
       <div className="flex flex-wrap items-center gap-2">
         {/* 좌측 상단 브랜드 — 전 페이지 공통 컴포넌트로 크기/위치 고정. */}
