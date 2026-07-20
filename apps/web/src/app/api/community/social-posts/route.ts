@@ -1,4 +1,5 @@
 import { HairMoneyCommunityPostReward } from "@/lib/mirilook-payments";
+import { isObjectionableContent } from "@/lib/server/content-moderation";
 import { normalizeHashtags, type MirilookSocialPost } from "@/lib/mirilook-social";
 import { rewardHairMoneyForCommunityPost } from "@/lib/server/hair-money";
 import { queueNotificationEvent } from "@/lib/server/notifications";
@@ -151,6 +152,13 @@ export async function POST(request: Request) {
     return Response.json(
       { accepted: false, reason: "body_required" },
       { status: 400 },
+    );
+  }
+
+  if (isObjectionableContent(body)) {
+    return Response.json(
+      { accepted: false, reason: "objectionable_content" },
+      { status: 422 },
     );
   }
 
@@ -330,6 +338,13 @@ async function publishConsultationSessionToFeed(
     return Response.json(
       { accepted: false, reason: "body_required" },
       { status: 400 },
+    );
+  }
+
+  if (isObjectionableContent(body)) {
+    return Response.json(
+      { accepted: false, reason: "objectionable_content" },
+      { status: 422 },
     );
   }
 
@@ -557,6 +572,13 @@ export async function PATCH(request: Request) {
     return Response.json(
       { accepted: false, reason: "body_required" },
       { status: 400 },
+    );
+  }
+
+  if (isObjectionableContent(body)) {
+    return Response.json(
+      { accepted: false, reason: "objectionable_content" },
+      { status: 422 },
     );
   }
 

@@ -99,10 +99,36 @@ export async function POST(request: Request) {
     );
   }
 
+  // 자동 조치: 커뮤니티 사진 게시물에 신고가 임계치 이상 쌓이면 즉시 피드에서 숨긴다.
+  // (Guideline 1.2 "24시간 내 조치" 자동 방어선 — 운영자 확인 전에도 노출을 막는다.)
+  let autoHidden = false;
+
+  if (targetType === "social_post") {
+    const reportCount = await supabase
+      .from("moderation_events")
+      .select("id", { count: "exact", head: true })
+      .eq("target_type", "social_post")
+      .eq("target_id", targetId);
+
+    if (!reportCount.error && (reportCount.count ?? 0) >= 3) {
+      const hide = await supabase
+        .from("social_posts")
+        .update({ status: "hidden", updated_at: new Date().toISOString() })
+        .eq("id", targetId);
+
+      if (hide.error) {
+        console.error("auto-hide reported post failed", hide.error);
+      } else {
+        autoHidden = true;
+      }
+    }
+  }
+
   const notification = await queueNotificationEvent({
-    body: `새 신고가 접수되었습니다. 대상: ${targetType} / 사유: ${reason}`,
+    body: `새 신고가 접수되었습니다. 대상: ${targetType} / 사유: ${reason}${autoHidden ? " (자동 숨김 처리됨)" : ""}`,
     eventType: "moderation_report",
     payload: {
+      autoHidden,
       reportId: insert.data?.id,
       targetId,
       targetType,
@@ -113,6 +139,7 @@ export async function POST(request: Request) {
 
   return Response.json({
     accepted: true,
+    autoHidden,
     notificationQueued: notification.queued,
     notificationReason: notification.queued ? undefined : notification.reason,
     reportId: insert.data?.id,

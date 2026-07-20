@@ -17,6 +17,11 @@ import {
   useIsMirilookApp,
 } from "@/lib/mirilook-native";
 import {
+  isAppleCancel,
+  isIosAppleAuthAvailable,
+  signInWithAppleNative,
+} from "@/lib/mirilook-ios-apple-auth";
+import {
   getAuthRedirectUrl,
   getOAuthRedirectUrl,
   getSupabaseBrowserClient,
@@ -45,6 +50,8 @@ export function MirilookAuthPanel() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // 회원가입 전 약관(무관용 정책 포함) 동의 — App Store Guideline 1.2 필수.
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [status, setStatus] = useState(() =>
     supabase
       ? ""
@@ -95,6 +102,55 @@ export function MirilookAuthPanel() {
         return;
       }
 
+      if (mode === "signup" && !agreedToTerms) {
+        setStatusTone("error");
+        setStatus("회원가입을 진행하려면 이용약관 동의에 체크해 주세요.");
+        return;
+      }
+
+      // iOS 앱: 웹 OAuth는 외부 사파리로 새어 세션이 앱에 안 돌아온다(Guideline 4 리젝).
+      // 네이티브 Apple 로그인 시트로 identityToken을 받아 앱 웹뷰 안에서 세션을 만든다.
+      if (provider === "apple" && isIosApp && isIosAppleAuthAvailable()) {
+        setBusyAction("apple");
+        setStatusTone("info");
+        setStatus("Apple 로그인 창을 여는 중입니다...");
+
+        try {
+          const { identityToken, rawNonce } = await signInWithAppleNative();
+          const { data, error } = await supabase.auth.signInWithIdToken({
+            provider: "apple",
+            token: identityToken,
+            nonce: rawNonce,
+          });
+
+          if (error) {
+            throw error;
+          }
+
+          if (data.user) {
+            void syncProfile(data.user);
+          }
+
+          // signInWithIdToken은 서버 콜백을 거치지 않으므로 여기서 직접 홈으로 보낸다.
+          postAuthRedirectedRef.current = true;
+          router.replace("/");
+        } catch (appleError) {
+          setBusyAction("");
+
+          if (isAppleCancel(appleError)) {
+            setStatus("");
+            return;
+          }
+
+          setStatusTone("error");
+          setStatus(
+            "Apple 로그인 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+          );
+        }
+
+        return;
+      }
+
       setBusyAction(provider);
       setStatusTone("info");
       setStatus(`${providerLabel} 로그인 창으로 이동합니다...`);
@@ -113,7 +169,7 @@ export function MirilookAuthPanel() {
       }
       // On success the browser is redirected to the provider, then back to /login.
     },
-    [supabase],
+    [supabase, isIosApp, syncProfile, router, mode, agreedToTerms],
   );
 
   useEffect(() => {
@@ -243,6 +299,12 @@ export function MirilookAuthPanel() {
     if (password.length < 6) {
       setStatusTone("error");
       setStatus("비밀번호는 최소 6자 이상으로 입력해 주세요.");
+      return;
+    }
+
+    if (mode === "signup" && !agreedToTerms) {
+      setStatusTone("error");
+      setStatus("회원가입을 진행하려면 이용약관 동의에 체크해 주세요.");
       return;
     }
 
@@ -480,7 +542,51 @@ export function MirilookAuthPanel() {
         </div>
       ) : (
         <>
-          <div className="mt-6 grid gap-3">
+          {mode === "signup" ? (
+            <label
+              className="mt-6 flex items-start gap-2.5 rounded-2xl p-3.5 text-left"
+              style={{ background: "#fff5f8", border: "1px solid #ffd5e3" }}
+            >
+              <input
+                checked={agreedToTerms}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-[#ea4a7c]"
+                onChange={(event) => setAgreedToTerms(event.target.checked)}
+                type="checkbox"
+              />
+              <span
+                className="text-[12.5px] leading-5"
+                style={{ color: "#7a4256" }}
+              >
+                만 14세 이상이며,{" "}
+                <a className="font-bold underline" href="/terms">
+                  이용약관
+                </a>{" "}
+                및{" "}
+                <a className="font-bold underline" href="/privacy">
+                  개인정보처리방침
+                </a>
+                에 동의합니다. 미리룩 커뮤니티는{" "}
+                <b>부적절한 콘텐츠와 괴롭힘·악성 이용자에 대해 무관용</b>이며,
+                위반 시 콘텐츠 삭제와 이용 제한이 적용됩니다.
+              </span>
+            </label>
+          ) : (
+            <p
+              className="mt-6 text-center text-[12px] leading-5"
+              style={{ color: "var(--ml-muted, #5f6b7a)" }}
+            >
+              로그인하면{" "}
+              <a className="font-semibold underline" href="/terms">
+                이용약관
+              </a>
+              {" · "}
+              <a className="font-semibold underline" href="/privacy">
+                개인정보처리방침
+              </a>{" "}
+              및 커뮤니티 무관용 정책에 동의하게 됩니다.
+            </p>
+          )}
+          <div className="mt-4 grid gap-3">
             {/* Apple 로그인 — iOS 앱에서는 필수(4.8), 웹/안드로이드에서도 선택 제공 */}
             <button
               className="flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl px-4 text-[15px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"

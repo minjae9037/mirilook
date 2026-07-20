@@ -1,4 +1,5 @@
 import { HairMoneyVotePostCost } from "@/lib/mirilook-payments";
+import { isObjectionableContent } from "@/lib/server/content-moderation";
 import {
   refundHairMoneyForVotePost,
   spendHairMoneyForVotePost,
@@ -80,6 +81,15 @@ export async function POST(request: Request) {
   const dmPolicy = payload.dmPolicy === "allow" ? "allow" : "deny";
   const styleName = sanitizeText(payload.styleName, 80) ?? "내 스타일";
   const hairColorName = sanitizeText(payload.hairColorName, 80);
+
+  // 부적절 문구는 Hair Money 차감 전에 먼저 막는다(무과금).
+  if (isObjectionableContent(styleName) || isObjectionableContent(hairColorName)) {
+    return Response.json(
+      { accepted: false, reason: "objectionable_content" },
+      { status: 422 },
+    );
+  }
+
   const requestId = `vote_${user.id}_${Date.now()}`;
 
   // 1) HM 차감 (멱등: source_type=vote_post, source_id=requestId)

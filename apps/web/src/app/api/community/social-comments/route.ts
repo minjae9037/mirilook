@@ -1,4 +1,5 @@
 import { type MirilookSocialComment } from "@/lib/mirilook-social";
+import { isObjectionableContent } from "@/lib/server/content-moderation";
 import { queueNotificationEvent } from "@/lib/server/notifications";
 import { protectMutationRequest } from "@/lib/server/request-security";
 import {
@@ -45,6 +46,13 @@ export async function POST(request: Request) {
     return Response.json(
       { accepted: false, reason: "comment_required" },
       { status: 400 },
+    );
+  }
+
+  if (isObjectionableContent(body)) {
+    return Response.json(
+      { accepted: false, reason: "objectionable_content" },
+      { status: 422 },
     );
   }
 
@@ -191,7 +199,7 @@ function sanitizeUuid(value: unknown) {
 
   const trimmed = value.trim();
 
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     trimmed,
   )
     ? trimmed

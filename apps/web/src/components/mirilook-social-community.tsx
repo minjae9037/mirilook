@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowRight,
   AtSign,
+  Ban,
   Camera,
   Copy,
   Flag,
@@ -161,6 +162,8 @@ export function MirilookSocialCommunity({
   const focusedPostId = searchParams.get("post") ?? "";
   const [postItems, setPostItems] = useState(posts);
   const [currentProfileId, setCurrentProfileId] = useState("");
+  // 내가 차단한 프로필 id — 그 작성자 글은 피드에서 즉시/재로드 시 숨긴다(Guideline 1.2).
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isFeedOpen, setIsFeedOpen] = useState(true);
   const [isMemberSearchDialogOpen, setIsMemberSearchDialogOpen] = useState(false);
@@ -210,6 +213,51 @@ export function MirilookSocialCommunity({
     });
   }, []);
 
+  // 로그인 사용자의 차단 목록을 불러와 피드에서 차단 대상 글을 걸러낸다.
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      if (!currentProfileId) {
+        if (!cancelled) {
+          setBlockedIds((prev) => (prev.size ? new Set() : prev));
+        }
+        return;
+      }
+
+      try {
+        const token = await getSupabaseAccessToken();
+
+        if (!token || cancelled) {
+          return;
+        }
+
+        const response = await fetch("/api/community/block/", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          blockedIds?: unknown;
+        };
+
+        if (!cancelled && Array.isArray(data.blockedIds)) {
+          setBlockedIds(
+            new Set(
+              data.blockedIds.filter(
+                (id): id is string => typeof id === "string",
+              ),
+            ),
+          );
+        }
+      } catch {
+        // 차단 목록 로드 실패는 피드 표시를 막지 않는다.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentProfileId]);
+
   const filteredProfiles = useMemo(() => {
     const keyword = query.trim().toLowerCase();
 
@@ -238,6 +286,11 @@ export function MirilookSocialCommunity({
 
     const sorted = [...postItems]
       .filter((post) => {
+        // 차단한 작성자의 글은 항상 숨긴다.
+        if (post.profileId && blockedIds.has(post.profileId)) {
+          return false;
+        }
+
         if (focusedPostId && post.id === focusedPostId) {
           return true;
         }
@@ -274,7 +327,7 @@ export function MirilookSocialCommunity({
       ...sorted.slice(0, focusedIndex),
       ...sorted.slice(focusedIndex + 1),
     ];
-  }, [focusedPostId, postItems, query]);
+  }, [blockedIds, focusedPostId, postItems, query]);
 
   const loadDmThreads = useCallback(async (options?: { silent?: boolean }) => {
     const silent = Boolean(options?.silent);
@@ -920,6 +973,36 @@ export function MirilookSocialCommunity({
     setPostItems((current) => current.filter((post) => post.id !== postId));
   }
 
+  // 사용자 차단: 그 작성자의 글을 피드에서 즉시 제거 + 서버에 영구 저장 + 개발자 통지.
+  async function blockUser(profileId: string, postId?: string) {
+    if (!profileId) {
+      return;
+    }
+
+    setBlockedIds((current) => {
+      const next = new Set(current);
+      next.add(profileId);
+      return next;
+    });
+    setPostItems((current) =>
+      current.filter((post) => post.profileId !== profileId),
+    );
+
+    try {
+      const token = await getSupabaseAccessToken();
+      await fetch("/api/community/block/", {
+        body: JSON.stringify({ blockedProfileId: profileId, postId }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        method: "POST",
+      });
+    } catch (error) {
+      console.error("block user failed", error);
+    }
+  }
+
   function mergeDmThread(thread: SocialDmThread | undefined) {
     if (!thread) {
       return;
@@ -950,7 +1033,7 @@ export function MirilookSocialCommunity({
 
   return (
     <>
-      <section className="grid gap-4 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           {
             body: "여러 장의 사진을 새 게시물로 올립니다.",
@@ -1260,25 +1343,13 @@ export function MirilookSocialCommunity({
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {popularTags(postItems).map((tag) => (
-              <button
-                className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
-                key={tag}
-                onClick={() => setQuery(tag)}
-                type="button"
-              >
-                #{tag}
-              </button>
-            ))}
-          </div>
-
           <div className="mt-4 grid gap-4">
             {recommendedPosts.map((post) => (
               <SocialPostCard
                 currentProfileId={currentProfileId}
                 isHighlighted={post.id === focusedPostId}
                 key={post.id}
+                onBlock={blockUser}
                 onDelete={removePost}
                 onDmSent={loadDmThreads}
                 onUpdate={updatePost}
@@ -1770,6 +1841,7 @@ function DmAttachmentPreviewList({
 function SocialPostCard({
   currentProfileId,
   isHighlighted = false,
+  onBlock,
   onDelete,
   onDmSent,
   onUpdate,
@@ -1777,6 +1849,7 @@ function SocialPostCard({
 }: {
   currentProfileId: string;
   isHighlighted?: boolean;
+  onBlock: (profileId: string, postId?: string) => void;
   onDelete: (postId: string) => void;
   onDmSent: () => Promise<void>;
   onUpdate: (postId: string, patch: Partial<MirilookSocialPost>) => void;
@@ -2422,64 +2495,105 @@ function SocialPostCard({
           </div>
         ) : null}
 
-        <div className="flex flex-wrap items-center gap-2">
+        {/* 액션 버튼 — 한글 라벨 제거(아이콘+숫자만), flex-1 균등분할로 화면폭과 무관하게 항상 1행. */}
+        <div className="flex items-center gap-1.5">
           <button
-            className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
+            aria-label={`좋아요 ${post.likeCount}`}
+            className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-xs font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
             onClick={() => void react("like")}
             type="button"
           >
-            <Heart aria-hidden="true" size={16} />
-            좋아요 {post.likeCount}
+            <Heart aria-hidden="true" size={15} />
+            {post.likeCount}
           </button>
           <button
-            className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
+            aria-label={`싫어요 ${post.dislikeCount}`}
+            className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-xs font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
             onClick={() => void react("dislike")}
             type="button"
           >
-            <ThumbsDown aria-hidden="true" size={16} />
-            싫어요 {post.dislikeCount}
+            <ThumbsDown aria-hidden="true" size={15} />
+            {post.dislikeCount}
           </button>
           <button
-            className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
             aria-expanded={isShareOpen}
+            aria-label={`공유 ${post.shareCount}`}
+            className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-xs font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
             onClick={() => {
               setIsShareOpen((current) => !current);
               setShareStatus("");
             }}
             type="button"
           >
-            <Share2 aria-hidden="true" size={16} />
-            공유 {post.shareCount}
+            <Share2 aria-hidden="true" size={15} />
+            {post.shareCount}
           </button>
           <button
-            className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
+            aria-label={`댓글 ${post.commentCount}`}
+            className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-xs font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
             onClick={() => setIsCommentsOpen((current) => !current)}
             type="button"
           >
-            <MessageSquareText aria-hidden="true" size={16} />
-            댓글 {post.commentCount}
+            <MessageSquareText aria-hidden="true" size={15} />
+            {post.commentCount}
           </button>
           <button
-            className="inline-flex items-center gap-2 rounded-md border border-[#f3d28a]/35 bg-[#2d2414] px-3 py-2 text-sm font-semibold text-[#f3d28a] transition hover:bg-[#3a2e18] disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="DM"
+            className="inline-flex flex-1 items-center justify-center rounded-md border border-[#f3d28a]/35 bg-[#2d2414] px-2 py-1.5 text-[#f3d28a] transition hover:bg-[#3a2e18] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={post.dmPolicy === "deny"}
             onClick={() => setIsDmOpen((current) => !current)}
             type="button"
           >
-            {isDmOpen ? <X aria-hidden="true" size={16} /> : <MessageCircle aria-hidden="true" size={16} />}
-            DM
+            {isDmOpen ? <X aria-hidden="true" size={15} /> : <MessageCircle aria-hidden="true" size={15} />}
           </button>
           <button
-            className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
+            aria-label="신고"
+            className="inline-flex flex-1 items-center justify-center rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
             onClick={() => setIsReportOpen((current) => !current)}
             type="button"
           >
-            <Flag aria-hidden="true" size={16} />
-            신고
+            <Flag aria-hidden="true" size={15} />
           </button>
+          {post.profileId && post.profileId !== currentProfileId ? (
+            <button
+              aria-label="이 이용자 차단"
+              className="inline-flex flex-1 items-center justify-center rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-[#d8cbb8] transition hover:border-[#ff7a7a]/60 hover:text-[#ff9a9a]"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "이 이용자를 차단할까요?\n차단하면 이 이용자의 게시물이 내 피드에서 즉시 사라지고, 운영자에게 통지됩니다.",
+                  )
+                ) {
+                  onBlock(post.profileId as string, post.id);
+                }
+              }}
+              type="button"
+            >
+              <Ban aria-hidden="true" size={15} />
+            </button>
+          ) : null}
         </div>
 
         {isShareOpen ? (
-          <section className="grid gap-3 rounded-md border border-white/10 bg-[#17130d] p-3">
+          <div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4"
+            onClick={() => setIsShareOpen(false)}
+          >
+            <div
+              className="grid max-h-[90vh] w-full max-w-md gap-3 overflow-y-auto rounded-2xl border border-[#2b281f] bg-[#171511] p-4 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-[#fffaf1]">공유하기</h3>
+                <button
+                  aria-label="닫기"
+                  className="grid size-8 place-items-center rounded-full text-[#8f826f] transition hover:text-[#f3d28a]"
+                  onClick={() => setIsShareOpen(false)}
+                  type="button"
+                >
+                  <X aria-hidden="true" size={18} />
+                </button>
+              </div>
             <div className="grid gap-2 sm:grid-cols-3">
               <button
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 text-sm font-semibold text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a] disabled:cursor-not-allowed disabled:opacity-55"
@@ -2538,7 +2652,8 @@ function SocialPostCard({
             {shareStatus ? (
               <p className="text-sm leading-6 text-[#d8cbb8]">{shareStatus}</p>
             ) : null}
-          </section>
+            </div>
+          </div>
         ) : null}
 
         {isEditing ? (
@@ -2671,23 +2786,23 @@ function SocialPostCard({
           ) : null}
 
           <form
-            className="mt-3 grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_80px]"
+            className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center"
             onSubmit={submitComment}
           >
             <input
-              className="h-10 rounded-md border border-white/10 bg-[#0f0e0c] px-3 text-sm text-[#fffaf1] outline-none placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
+              className="h-10 w-full min-w-0 rounded-md border border-white/10 bg-[#0f0e0c] px-3 text-sm text-[#fffaf1] outline-none placeholder:text-[#8f826f] focus:border-[#f3d28a]/70 sm:w-36"
               onChange={(event) => setCommentDisplayName(event.target.value)}
               placeholder="닉네임"
               value={commentDisplayName}
             />
             <input
-              className="h-10 min-w-0 rounded-md border border-white/10 bg-[#0f0e0c] px-3 text-sm text-[#fffaf1] outline-none placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
+              className="h-10 w-full min-w-0 rounded-md border border-white/10 bg-[#0f0e0c] px-3 text-sm text-[#fffaf1] outline-none placeholder:text-[#8f826f] focus:border-[#f3d28a]/70 sm:flex-1"
               onChange={(event) => setCommentBody(event.target.value)}
               placeholder="댓글 달기"
               value={commentBody}
             />
             <button
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#f3d28a] px-3 text-sm font-bold text-[#171511] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:opacity-55"
+              className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-md bg-[#f3d28a] px-4 text-sm font-bold text-[#171511] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:opacity-55 sm:w-auto"
               disabled={isSubmittingComment}
               type="submit"
             >
@@ -2707,13 +2822,28 @@ function SocialPostCard({
         </section>
 
         {isDmOpen && post.dmPolicy === "allow" ? (
-          <form
-            className="rounded-md border border-[#f3d28a]/20 bg-[#17130d] p-3"
-            onSubmit={submitDm}
+          <div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4"
+            onClick={() => setIsDmOpen(false)}
           >
-            <p className="text-sm font-semibold text-[#fffaf1]">
-              @{post.handle} 님에게 DM 보내기
-            </p>
+            <form
+              className="grid max-h-[90vh] w-full max-w-md gap-2 overflow-y-auto rounded-2xl border border-[#2b281f] bg-[#171511] p-4 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+              onSubmit={submitDm}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-base font-bold text-[#fffaf1]">
+                  @{post.handle} 님에게 DM 보내기
+                </p>
+                <button
+                  aria-label="닫기"
+                  className="grid size-8 place-items-center rounded-full text-[#8f826f] transition hover:text-[#f3d28a]"
+                  onClick={() => setIsDmOpen(false)}
+                  type="button"
+                >
+                  <X aria-hidden="true" size={18} />
+                </button>
+              </div>
             <input
               className="mt-3 h-10 w-full rounded-md border border-white/10 bg-[#0f0e0c] px-3 text-sm text-[#fffaf1] outline-none placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
               onChange={(event) => setDmContact(event.target.value)}
@@ -2741,7 +2871,8 @@ function SocialPostCard({
             {dmStatus ? (
               <p className="mt-2 text-sm leading-6 text-[#d8cbb8]">{dmStatus}</p>
             ) : null}
-          </form>
+            </form>
+          </div>
         ) : null}
 
         {isReportOpen ? (
@@ -2926,21 +3057,6 @@ function isAbortError(error: unknown) {
     error instanceof DOMException &&
     (error.name === "AbortError" || error.name === "NotAllowedError")
   );
-}
-
-function popularTags(posts: MirilookSocialPost[]) {
-  const counts = new Map<string, number>();
-
-  posts.forEach((post) => {
-    post.hashtags.forEach((tag) => counts.set(tag, (counts.get(tag) ?? 0) + 1));
-  });
-
-  const tags = Array.from(counts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([tag]) => tag)
-    .slice(0, 12);
-
-  return tags.length ? tags : ["헤어스타일", "코디", "메이크업", "상담전참고"];
 }
 
 function getReactionSessionKey() {
