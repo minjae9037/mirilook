@@ -2361,8 +2361,7 @@ function SocialPostCard({
 
       setReportBody("");
       setReportReason("부적절한 내용");
-      setIsReportOpen(false);
-      setReportStatus("신고가 접수되었습니다. 운영자가 확인하겠습니다.");
+      setReportStatus("신고가 접수되었습니다. 운영자가 24시간 이내에 확인합니다.");
     } catch (error) {
       console.error(error);
       setReportStatus("신고 접수 중 오류가 발생했습니다.");
@@ -2883,16 +2882,34 @@ function SocialPostCard({
         ) : null}
 
         {isReportOpen ? (
-          <form
-            className="rounded-md border border-[#f3d28a]/20 bg-[#17130d] p-3"
-            onSubmit={submitReport}
+          <div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4"
+            onClick={() => setIsReportOpen(false)}
           >
-            <p className="text-sm font-semibold text-[#fffaf1]">
-              이 게시물 신고하기
-            </p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-[180px_minmax(0,1fr)]">
+            <form
+              className="grid w-full max-w-md gap-3 rounded-2xl border border-[#2b281f] bg-[#171511] p-4 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+              onSubmit={submitReport}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-base font-bold text-[#fffaf1]">
+                  이 게시물 신고하기
+                </p>
+                <button
+                  aria-label="닫기"
+                  className="grid size-8 place-items-center rounded-full text-[#8f826f] transition hover:text-[#f3d28a]"
+                  onClick={() => setIsReportOpen(false)}
+                  type="button"
+                >
+                  <X aria-hidden="true" size={18} />
+                </button>
+              </div>
+              <p className="text-sm leading-6 text-[#b8aa95]">
+                부적절한 게시물을 운영자에게 신고합니다. 신고가 접수되면 운영자가
+                24시간 이내에 확인해 조치합니다.
+              </p>
               <select
-                className="h-10 rounded-md border border-white/10 bg-[#0f0e0c] px-2 text-sm text-[#fffaf1] outline-none focus:border-[#f3d28a]/70"
+                className="h-11 rounded-md border border-white/10 bg-[#0f0e0c] px-2 text-sm text-[#fffaf1] outline-none focus:border-[#f3d28a]/70"
                 onChange={(event) => setReportReason(event.target.value)}
                 value={reportReason}
               >
@@ -2904,34 +2921,28 @@ function SocialPostCard({
                 <option value="기타 운영 확인 필요">기타 운영 확인 필요</option>
               </select>
               <input
-                className="h-10 rounded-md border border-white/10 bg-[#0f0e0c] px-3 text-sm text-[#fffaf1] outline-none placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
+                className="h-11 rounded-md border border-white/10 bg-[#0f0e0c] px-3 text-sm text-[#fffaf1] outline-none placeholder:text-[#8f826f] focus:border-[#f3d28a]/70"
                 onChange={(event) => setReportBody(event.target.value)}
                 placeholder="운영자가 확인할 내용을 간단히 적어주세요"
                 value={reportBody}
               />
-            </div>
-            <button
-              className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#f3d28a]/35 bg-[#2d2414] px-3 text-sm font-semibold text-[#f3d28a] transition hover:bg-[#3a2e18] disabled:cursor-not-allowed disabled:opacity-55"
-              disabled={isReporting}
-              type="submit"
-            >
-              {isReporting ? (
-                <Loader2 aria-hidden="true" className="animate-spin" size={15} />
-              ) : (
-                <Flag aria-hidden="true" size={15} />
-              )}
-              신고 접수
-            </button>
-            {reportStatus ? (
-              <p className="mt-2 text-sm leading-6 text-[#d8cbb8]">
-                {reportStatus}
-              </p>
-            ) : null}
-          </form>
-        ) : reportStatus ? (
-          <p className="rounded-md border border-white/10 bg-[#17130d] px-3 py-2 text-sm leading-6 text-[#d8cbb8]">
-            {reportStatus}
-          </p>
+              <button
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border border-[#f3d28a]/35 bg-[#2d2414] px-3 text-sm font-bold text-[#f3d28a] transition hover:bg-[#3a2e18] disabled:cursor-not-allowed disabled:opacity-55"
+                disabled={isReporting}
+                type="submit"
+              >
+                {isReporting ? (
+                  <Loader2 aria-hidden="true" className="animate-spin" size={15} />
+                ) : (
+                  <Flag aria-hidden="true" size={15} />
+                )}
+                신고 접수
+              </button>
+              {reportStatus ? (
+                <p className="text-sm leading-6 text-[#f3d28a]">{reportStatus}</p>
+              ) : null}
+            </form>
+          </div>
         ) : null}
       </div>
     </article>
