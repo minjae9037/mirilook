@@ -13,6 +13,7 @@ import {
   Flag,
   HeartHandshake,
   KeyRound,
+  MessageCircle,
   ScrollText,
   ShieldAlert,
   UserRound,
@@ -20,6 +21,7 @@ import {
 import { type ReactNode, useState } from "react";
 import { MirilookAccountDeletion } from "@/components/mirilook-account-deletion";
 import { MirilookBlockedMembers } from "@/components/mirilook-blocked-members";
+import { MirilookDmInbox } from "@/components/mirilook-dm-inbox";
 import { MirilookHistoryManager } from "@/components/mirilook-history-manager";
 import { MirilookNotificationPreferences } from "@/components/mirilook-notification-preferences";
 import { MirilookPasswordSettings } from "@/components/mirilook-password-settings";
@@ -29,6 +31,7 @@ import { MirilookReportHistory } from "@/components/mirilook-report-history";
 type DetailView =
   | "profile"
   | "history"
+  | "dm"
   | "blocked"
   | "reports"
   | "notifications"
@@ -39,6 +42,7 @@ type View = "hub" | DetailView;
 const VIEW_TITLE: Record<DetailView, string> = {
   profile: "프로필 관리",
   history: "내 상담 기록 · 매칭",
+  dm: "DM 대화함",
   blocked: "차단한 회원 관리",
   reports: "신고 이력",
   notifications: "알림 설정",
@@ -58,6 +62,7 @@ export function MirilookMyPageHub() {
       <BackBar title={VIEW_TITLE[view]} onBack={() => setView("hub")} />
       {view === "profile" ? <MirilookProfilePanel /> : null}
       {view === "history" ? <MirilookHistoryManager /> : null}
+      {view === "dm" ? <MirilookDmInbox /> : null}
       {view === "blocked" ? <MirilookBlockedMembers /> : null}
       {view === "reports" ? <MirilookReportHistory /> : null}
       {view === "notifications" ? <MirilookNotificationPreferences /> : null}
@@ -89,6 +94,12 @@ function Hub({ onSelect }: { onSelect: (view: DetailView) => void }) {
       </MenuGroup>
 
       <MenuGroup title="커뮤니티 관리">
+        <MenuRow
+          icon={<MessageCircle size={18} />}
+          label="DM 대화함"
+          description="주고받은 DM 확인 · 답장 · 상대 신고/차단"
+          onClick={() => onSelect("dm")}
+        />
         <MenuRow
           icon={<Ban size={18} />}
           label="차단한 회원"

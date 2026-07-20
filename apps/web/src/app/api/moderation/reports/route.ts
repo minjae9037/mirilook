@@ -17,6 +17,7 @@ const allowedTargetTypes = new Set([
   "review",
   "share",
   "consultation",
+  "user",
 ]);
 
 type ModerationReportPayload = {
