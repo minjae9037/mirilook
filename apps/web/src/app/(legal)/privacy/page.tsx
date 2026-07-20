@@ -16,6 +16,9 @@ export default function PrivacyPage() {
         <h1 className="mt-3 text-[26px] font-extrabold tracking-[-0.02em] text-[#fffaf1] sm:text-[32px]">
           개인정보처리방침
         </h1>
+        <p className="mt-2 text-xs font-semibold text-[#8f826f]">
+          시행일 2026.07.20.
+        </p>
       </header>
 
       <section className="space-y-3">
@@ -143,60 +146,40 @@ export default function PrivacyPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold text-[#fffaf1]">10. 광고 및 제3자 광고 쿠키(Google AdSense)</h2>
+        <h2 className="text-xl font-semibold text-[#fffaf1]">10. 만 14세 미만 아동의 개인정보</h2>
         <p>
-          본 서비스는 광고 게재를 위해 Google AdSense 등 제3자 광고 공급업체를
-          이용하며, 이들은 이용자의 방문 기록을 바탕으로 한 맞춤형 광고를
-          제공하기 위해 쿠키를 사용합니다.
+          미리룩은 만 14세 미만 아동을 대상으로 하지 않으며, 만 14세 미만
+          아동의 회원가입과 개인정보 수집을 허용하지 않습니다. 만 14세 미만인
+          경우 서비스를 이용할 수 없으며, 회사가 법정대리인의 동의 없이 만 14세
+          미만 아동의 개인정보가 수집된 사실을 알게 된 경우 지체 없이 해당
+          정보를 파기합니다.
         </p>
-        <ul className="list-disc space-y-2 pl-5">
-          <li>
-            Google을 포함한 제3자 공급업체는 쿠키(Google의 경우 DoubleClick
-            DART 쿠키 등)와 광고 식별자를 사용해 이용자의 본 서비스 및 다른
-            사이트 방문 기록에 기반한 광고를 게재합니다.
-          </li>
-          <li>
-            이용자는{" "}
-            <a
-              className="text-[#f3d28a] underline"
-              href="https://www.google.com/settings/ads"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Google 광고 설정(google.com/settings/ads)
-            </a>
-            에서 맞춤형 광고를 비활성화할 수 있으며,{" "}
-            <a
-              className="text-[#f3d28a] underline"
-              href="https://www.aboutads.info/choices"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              www.aboutads.info/choices
-            </a>
-            에서 제3자 공급업체의 쿠키 사용을 일괄 거부할 수 있습니다.
-          </li>
-          <li>
-            Google의 광고 쿠키 사용에 관한 자세한 정책은{" "}
-            <a
-              className="text-[#f3d28a] underline"
-              href="https://policies.google.com/technologies/ads"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Google 광고 정책
-            </a>
-            을 참고하시기 바랍니다.
-          </li>
-        </ul>
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold text-[#fffaf1]">11. 문의처</h2>
+        <h2 className="text-xl font-semibold text-[#fffaf1]">
+          11. 개인정보 보호책임자 및 사업자 정보
+        </h2>
         <p>
-          개인정보 관련 문의, 권리 행사, 침해 신고는 jipsa.admin@gmail.com으로
-          접수할 수 있습니다. 정식 개인정보 보호책임자와 사업자 정보는 법인
-          설립 및 정식 오픈 시 업데이트합니다.
+          회사는 개인정보 처리에 관한 업무를 총괄하여 책임지고, 정보주체의
+          문의·불만·피해 구제를 처리하기 위해 아래와 같이 개인정보 보호책임자를
+          지정하고 있습니다.
+        </p>
+        <ul className="list-disc space-y-2 pl-5">
+          <li>개인정보 보호책임자: 이민재 (대표)</li>
+          <li>연락처: jipsa.admin@gmail.com / 010-2704-5672</li>
+        </ul>
+        <p>
+          미리룩은 엠제이인사이트 주식회사가 운영합니다. 상호: 엠제이인사이트
+          주식회사 · 대표: 이민재 · 사업자등록번호: 226-81-56027 ·
+          통신판매업신고: 제2026-부천소사-0462호 · 소재지: 경기도 부천시 소사구
+          소삼로 62.
+        </p>
+        <p>
+          개인정보 관련 문의, 권리 행사, 침해 신고는 위 연락처로 접수할 수
+          있습니다. 개인정보 침해에 관한 상담이 필요한 경우 개인정보분쟁조정위원회
+          (1833-6972), 개인정보침해신고센터(118), 대검찰청 사이버수사과(1301),
+          경찰청 사이버수사국(182)에 문의하실 수 있습니다.
         </p>
       </section>
 

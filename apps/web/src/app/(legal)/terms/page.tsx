@@ -15,6 +15,9 @@ export default function TermsPage() {
           Terms of Service
         </p>
         <h1 className="mt-3 text-[26px] font-extrabold tracking-[-0.02em] text-[#fffaf1] sm:text-[32px]">이용약관</h1>
+        <p className="mt-2 text-xs font-semibold text-[#8f826f]">
+          시행일 2026.07.20.
+        </p>
       </header>
 
       <section className="space-y-3">

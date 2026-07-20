@@ -94,6 +94,7 @@ import { trackEvent } from "@/lib/mirilook-analytics";
 import { MirilookColorWheel } from "@/components/mirilook-color-wheel";
 import { MirilookGenerationRefundNotice } from "@/components/mirilook-generation-refund-notice";
 import { MirilookHairMoneyStore } from "@/components/mirilook-hair-money-store";
+import { MirilookPatentNotice } from "@/components/mirilook-patent-notice";
 import { MirilookPaymentPanel } from "@/components/mirilook-payment-panel";
 import { assessFaceQuality, type FaceQualityResult } from "@/lib/face-quality";
 
@@ -5078,6 +5079,8 @@ export function MirilookStudio() {
             ))}
           </div>
 
+          <MirilookPatentNotice />
+
           {enlargedRecommendationId
             ? (() => {
                 const enlarged = recommendations.find(
@@ -5451,6 +5454,8 @@ export function MirilookStudio() {
               />
             ))}
           </div>
+
+          <MirilookPatentNotice />
           {renderedResultPreview ? (
             <RenderedResultPreviewDialog
               isMirrored={mirroredResultLabels.has(

@@ -22,6 +22,9 @@ export default function RefundPage() {
           본 정책은 미리룩 유료 서비스(H머니 및 AI 생성 기능)의 서비스 제공시기,
           청약철회·취소, 교환, 환불 기준을 안내합니다.
         </p>
+        <p className="mt-2 text-xs font-semibold text-[#8f826f]">
+          시행일 2026.07.20.
+        </p>
       </header>
 
       <section className="space-y-3">
