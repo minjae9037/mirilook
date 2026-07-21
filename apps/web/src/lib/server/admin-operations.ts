@@ -14,6 +14,7 @@ export type AdminOperationMetric = {
 };
 
 export type AdminOperationItem = {
+  attachments?: AdminOperationImage[];
   detail?: AdminOperationItemDetail;
   id: string;
   meta?: string;
@@ -23,7 +24,11 @@ export type AdminOperationItem = {
 };
 
 export type AdminOperationImage = {
-  assetType?: "final_angle" | "recommendation_preview" | "source_photo";
+  assetType?:
+    | "final_angle"
+    | "recommendation_preview"
+    | "source_photo"
+    | "outfit_image";
   displayOrder?: number;
   imageUrl: string;
   label: string;
@@ -38,6 +43,7 @@ export type AdminOperationItemDetail = {
   customerId?: string;
   hairColorName?: string;
   memo?: string;
+  outfitImages: AdminOperationImage[];
   recommendationImages: AdminOperationImage[];
   regionName?: string;
   sessionId: string;
@@ -48,9 +54,14 @@ export type AdminOperationItemDetail = {
 
 export type AdminOperationCategory =
   | "community"
+  | "consultations"
   | "customers"
+  | "hair_money"
+  | "home"
   | "revenue"
   | "salons"
+  | "shares"
+  | "support"
   | "system";
 
 export type AdminOperationSection = {
@@ -66,6 +77,17 @@ export type AdminOperationSection = {
   description: string;
   emptyText: string;
   items: AdminOperationItem[];
+  // 목록이 길어 서버에서 페이지로 잘라 내려줄 때만 채워진다(예: 상담 히스토리).
+  // 콘솔이 이 값으로 페이지 이동 링크를 그린다.
+  pagination?: {
+    page: number;
+    pageCount: number;
+    pageSize: number;
+    // 페이지 번호를 담는 URL 쿼리 파라미터 이름
+    param: string;
+    tab: AdminOperationCategory;
+    total: number;
+  };
   title: string;
 };
 
@@ -86,7 +108,8 @@ type RecentRow = Record<string, unknown>;
 type AdminConsultationAssetType =
   | "final_angle"
   | "recommendation_preview"
-  | "source_photo";
+  | "source_photo"
+  | "outfit_image";
 
 type AdminConsultationSessionRow = {
   audience_name: string | null;
@@ -121,9 +144,14 @@ const adminConsultationAssetTypes: AdminConsultationAssetType[] = [
   "final_angle",
   "source_photo",
   "recommendation_preview",
+  "outfit_image",
 ];
 
-export async function loadAdminOperationsSummary(): Promise<AdminOperationsSummary> {
+export async function loadAdminOperationsSummary(
+  options: { consultationPage?: number } = {},
+): Promise<AdminOperationsSummary> {
+  // 상담 히스토리는 건수가 많아 50개씩 끊어 읽는다(전체 건수는 sessionCount로 표시).
+  const consultationPage = Math.max(1, Math.floor(options.consultationPage ?? 1));
   const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
@@ -194,7 +222,7 @@ export async function loadAdminOperationsSummary(): Promise<AdminOperationsSumma
       countRows("notification_events"),
       countRows("moderation_events"),
       countRows("support_cases"),
-      selectRecentConsultationSessions(),
+      selectRecentConsultationSessions(consultationPage),
       selectRecent(
         "booking_requests",
         "id, name, contact, service_type, preferred_date, status, created_at",
@@ -253,7 +281,7 @@ export async function loadAdminOperationsSummary(): Promise<AdminOperationsSumma
       ),
       selectRecent(
         "support_cases",
-        "id, case_type, status, priority, contact_email, contact_phone, subject, body, request_id, payment_id, refund_amount_hm, created_at, updated_at",
+        "id, case_type, status, priority, contact_email, contact_phone, subject, body, request_id, payment_id, refund_amount_hm, metadata, created_at, updated_at",
       ),
       selectCustomerProfiles(),
     ]);
@@ -310,6 +338,25 @@ export async function loadAdminOperationsSummary(): Promise<AdminOperationsSumma
       socialShareCount,
       socialMessageCount,
     ].filter((result) => result.error);
+
+    // 고객문의 첨부 스크린샷을 케이스별 서명 URL로 미리 변환한다.
+    const supabaseForAttachments = getSupabaseAdminClient();
+    const supportAttachmentsByCaseId = new Map<string, AdminOperationImage[]>();
+
+    if (supabaseForAttachments) {
+      await Promise.all(
+        recentSupportCases.map(async (row) => {
+          const images = await buildSupportAttachmentImages(
+            supabaseForAttachments,
+            (row as { metadata?: unknown }).metadata,
+          );
+
+          if (images.length > 0) {
+            supportAttachmentsByCaseId.set(text(row.id), images);
+          }
+        }),
+      );
+    }
 
     return {
       connected: true,
@@ -440,11 +487,12 @@ export async function loadAdminOperationsSummary(): Promise<AdminOperationsSumma
             ],
             table: "support_cases",
           },
-          categories: ["customers", "revenue"],
+          categories: ["support"],
           description:
             "생성 실패, 환불 요청, 결제 오류, 일반 고객문의 접수 내역입니다. H머니 환급은 추천 요청 ID가 확인된 건만 원장에 반영됩니다.",
           emptyText: "아직 고객지원 문의가 없습니다.",
           items: recentSupportCases.map((row) => ({
+            attachments: supportAttachmentsByCaseId.get(text(row.id)),
             id: text(row.id),
             meta: joinMeta([
               supportCaseTypeLabel(text(row.case_type)),
@@ -482,9 +530,20 @@ export async function loadAdminOperationsSummary(): Promise<AdminOperationsSumma
           title: "최근 트렌드 리서치",
         },
         {
-          categories: ["customers"],
-          description: "고객이 저장한 최근 상담 결과입니다.",
+          categories: ["consultations"],
+          description: "고객이 저장한 상담 결과입니다. 최신순 50건씩 나눠 표시합니다.",
           emptyText: "아직 저장된 상담 결과가 없습니다.",
+          pagination: {
+            page: consultationPage,
+            pageCount: Math.max(
+              1,
+              Math.ceil((sessionCount.count || 0) / adminRecentConsultationLimit),
+            ),
+            pageSize: adminRecentConsultationLimit,
+            param: "consultationPage",
+            tab: "consultations" as const,
+            total: sessionCount.count || 0,
+          },
           items: recentSessions.map((row) => ({
             detail: {
               audienceName: text(row.audience_name) || undefined,
@@ -495,6 +554,7 @@ export async function loadAdminOperationsSummary(): Promise<AdminOperationsSumma
               customerId: text(row.profile_id) || undefined,
               hairColorName: text(row.hair_color_name) || undefined,
               memo: text(row.style_memo) || undefined,
+              outfitImages: imageList(row.outfit_images),
               recommendationImages: imageList(row.recommendation_images),
               regionName: text(row.region_name) || undefined,
               sessionId: text(row.id),
@@ -853,7 +913,7 @@ export async function loadAdminOperationsSummary(): Promise<AdminOperationsSumma
           title: "최근 결제 이벤트",
         },
         {
-          categories: ["customers", "revenue"],
+          categories: ["hair_money"],
           description:
             "H머니 충전, 추천 차감, 환불, 운영 조정을 추적하는 계정 원장입니다.",
           emptyText: "아직 H머니 원장 거래가 없습니다.",
@@ -884,7 +944,7 @@ export async function loadAdminOperationsSummary(): Promise<AdminOperationsSumma
             ],
             table: "consultation_shares",
           },
-          categories: ["customers"],
+          categories: ["shares"],
           description: "미용사나 지인에게 전달된 공유 보드 링크입니다.",
           emptyText: "아직 공유 링크가 없습니다.",
           items: recentShares.map((row) => ({
@@ -900,7 +960,7 @@ export async function loadAdminOperationsSummary(): Promise<AdminOperationsSumma
           title: "최근 공유 링크",
         },
         {
-          categories: ["customers", "system"],
+          categories: ["shares"],
           description:
             "미용사나 고객에게 전송한 상담 결과 이메일입니다. 공유 링크와 Resend 발송 ID를 함께 추적합니다.",
           emptyText: "아직 이메일 공유 발송 기록이 없습니다.",
@@ -1067,20 +1127,23 @@ async function selectRecent(tableName: string, columns: string) {
   return (result.data ?? []) as unknown as RecentRow[];
 }
 
-async function selectRecentConsultationSessions(): Promise<RecentRow[]> {
+async function selectRecentConsultationSessions(page = 1): Promise<RecentRow[]> {
   const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
     return [];
   }
 
+  // 페이지 단위로 끊어 읽는다(1페이지 = 최신 50건). 전체 건수는 호출부의
+  // generation_sessions 카운트를 그대로 쓴다.
+  const from = (Math.max(1, page) - 1) * adminRecentConsultationLimit;
   const sessionsResult = await supabase
     .from("generation_sessions")
     .select(
       "id, profile_id, style_name, hair_color_name, audience_name, region_name, source_photo_count, style_memo, status, created_at",
     )
     .order("created_at", { ascending: false })
-    .limit(adminRecentConsultationLimit);
+    .range(from, from + adminRecentConsultationLimit - 1);
 
   if (sessionsResult.error) {
     console.error("admin consultation sessions select failed", sessionsResult.error);
@@ -1104,8 +1167,12 @@ async function selectRecentConsultationSessions(): Promise<RecentRow[]> {
       const profile = session.profile_id
         ? profilesById.get(session.profile_id)
         : undefined;
-      const [sourcePhotos, recommendationImages, consultationImages] =
-        await Promise.all([
+      const [
+        sourcePhotos,
+        recommendationImages,
+        consultationImages,
+        outfitImages,
+      ] = await Promise.all([
           buildAdminSignedAssetImages(
             supabase,
             filterAdminAssetsByType(assets, "source_photo"),
@@ -1121,6 +1188,11 @@ async function selectRecentConsultationSessions(): Promise<RecentRow[]> {
             filterAdminAssetsByType(assets, "final_angle"),
             9,
           ),
+          buildAdminSignedAssetImages(
+            supabase,
+            filterAdminAssetsByType(assets, "outfit_image"),
+            9,
+          ),
         ]);
 
       return {
@@ -1128,6 +1200,7 @@ async function selectRecentConsultationSessions(): Promise<RecentRow[]> {
         consultation_images: consultationImages,
         customer_display_name: profile?.display_name ?? null,
         customer_email: profile?.email ?? null,
+        outfit_images: outfitImages,
         recommendation_images: recommendationImages,
         source_photos: sourcePhotos,
       } satisfies RecentRow;
@@ -1200,12 +1273,38 @@ function filterAdminAssetsByType(
   return assets.filter((asset) => asset.asset_type === assetType);
 }
 
+// Supabase Storage URL(서명/공개/인증)에서 {bucket, path}를 추출한다.
+// 레거시 자산은 storage_path 없이 original_url에 (만료되는) 서명 URL만 저장돼 있어,
+// 여기서 경로를 파싱해 열람 시점에 새 서명 URL을 재발급할 수 있게 한다.
+function parseSupabaseStorageObject(
+  url: string,
+): { bucket: string; path: string } | null {
+  const match = url.match(/\/object\/(?:sign|public|authenticated)\/([^?]+)/);
+  if (!match) {
+    return null;
+  }
+
+  const segments = match[1].split("/");
+  const bucket = segments.shift();
+  const path = segments.join("/");
+
+  if (!bucket || !path) {
+    return null;
+  }
+
+  try {
+    return { bucket, path: decodeURIComponent(path) };
+  } catch {
+    return { bucket, path };
+  }
+}
+
 async function buildAdminSignedAssetImages(
   supabase: SupabaseAdminClient,
   assets: AdminConsultationAssetRow[],
   limit: number,
 ) {
-  const bucket = getConsultationStorageBucket();
+  const fallbackBucket = getConsultationStorageBucket();
 
   const images = await Promise.all(
     assets
@@ -1215,10 +1314,21 @@ async function buildAdminSignedAssetImages(
       .map(async (asset, index) => {
         let imageUrl = text(asset.original_url);
 
-        if (asset.storage_path && supabase) {
+        // storage_path가 있으면 그대로, 없으면 만료됐을 수 있는 original_url에서 경로를 파싱한다.
+        let signBucket = fallbackBucket;
+        let signPath = text(asset.storage_path);
+        if (!signPath && imageUrl) {
+          const parsed = parseSupabaseStorageObject(imageUrl);
+          if (parsed) {
+            signBucket = parsed.bucket;
+            signPath = parsed.path;
+          }
+        }
+
+        if (signPath && supabase) {
           const signed = await supabase.storage
-            .from(bucket)
-            .createSignedUrl(asset.storage_path, 60 * 60);
+            .from(signBucket)
+            .createSignedUrl(signPath, 60 * 60);
 
           if (signed.error) {
             console.warn("admin consultation asset signed url failed", signed.error);
@@ -1234,6 +1344,53 @@ async function buildAdminSignedAssetImages(
           label: asset.angle_label ?? `${index + 1}번`,
         } satisfies AdminOperationImage;
       }),
+  );
+
+  return images.filter((image) => Boolean(image.imageUrl));
+}
+
+// 고객문의에 첨부된 스크린샷(metadata.attachments의 storage 경로)을 관리자 열람용
+// 서명 URL로 변환한다. 저장 시 만료(30일)와 무관하게 열람 시점마다 1시간 URL을 새로 발급.
+async function buildSupportAttachmentImages(
+  supabase: SupabaseAdminClient,
+  metadata: unknown,
+): Promise<AdminOperationImage[]> {
+  if (!supabase || !metadata || typeof metadata !== "object") {
+    return [];
+  }
+
+  const raw = (metadata as { attachments?: unknown }).attachments;
+
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  const paths = raw
+    .filter((item): item is string => typeof item === "string")
+    .slice(0, 6);
+
+  if (paths.length === 0) {
+    return [];
+  }
+
+  const bucket = getConsultationStorageBucket();
+
+  const images = await Promise.all(
+    paths.map(async (path, index) => {
+      const signed = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(path, 60 * 60);
+
+      if (signed.error) {
+        console.warn("admin support attachment signed url failed", signed.error);
+      }
+
+      return {
+        displayOrder: index + 1,
+        imageUrl: signed.data?.signedUrl ?? "",
+        label: `첨부 ${index + 1}`,
+      } satisfies AdminOperationImage;
+    }),
   );
 
   return images.filter((image) => Boolean(image.imageUrl));
