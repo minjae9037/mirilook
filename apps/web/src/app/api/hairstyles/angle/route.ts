@@ -1,4 +1,5 @@
 ﻿import { NextResponse } from "next/server";
+import { enforceAngleOrientation } from "@/lib/server/angle-orientation";
 import { resolveRequestedHairColor } from "@/lib/mirilook-colors";
 import {
   getRegionProfile,
@@ -141,34 +142,50 @@ export async function POST(request: Request) {
     });
 
     const generationStartedAt = Date.now();
-    const imageUrl = await editFinalHairImage({
-      base: base instanceof File ? base : undefined,
-      baseReferences,
-      costLabel: "final-angle",
-      front,
-      leftSide: leftSide instanceof File ? leftSide : undefined,
-      rightSide: rightSide instanceof File ? rightSide : undefined,
-      side,
-      source: angle.source,
-      size: process.env.OPENAI_ANGLE_IMAGE_SIZE ?? "1024x1024",
-      styleReferences: celebrityReferences,
-      prompt: buildAnglePrompt(
-        audience,
-        region,
-        angle.label,
-        style.name,
-        stylePrompt,
-        angle.prompt,
-        photoContext,
-        base instanceof File || baseReferences.length > 0,
-        referenceRole,
-        baseReferenceCount,
-        celebrityReferences.length,
-      ),
+    const anglePrompt = buildAnglePrompt(
+      audience,
+      region,
+      angle.label,
+      style.name,
+      stylePrompt,
+      angle.prompt,
+      photoContext,
+      base instanceof File || baseReferences.length > 0,
+      referenceRole,
+      baseReferenceCount,
+      celebrityReferences.length,
+    );
+    const runGeneration = (correction?: string) =>
+      editFinalHairImage({
+        base: base instanceof File ? base : undefined,
+        baseReferences,
+        costLabel: "final-angle",
+        front,
+        leftSide: leftSide instanceof File ? leftSide : undefined,
+        rightSide: rightSide instanceof File ? rightSide : undefined,
+        side,
+        source: angle.source,
+        size: process.env.OPENAI_ANGLE_IMAGE_SIZE ?? "1024x1024",
+        styleReferences: celebrityReferences,
+        prompt: correction ? `${anglePrompt}\n\n${correction}` : anglePrompt,
+      });
+
+    const generated = await runGeneration();
+
+    // 좌/우 방향이 뒤집혀 나오는 치명적 오류를 여기서 차단한다.
+    // (클라이언트 직접 생성 경로와 백그라운드 트리거 경로가 모두 이 라우트를
+    //  거치므로, 검증을 여기 한 곳에 두면 양쪽 모두 보호된다.)
+    const orientation = await enforceAngleOrientation({
+      angleLabel: angle.label,
+      imageUrl: generated,
+      regenerate: (correction) => runGeneration(correction),
     });
+    const imageUrl = orientation.imageUrl;
+
     logApiDuration("hairstyles/angle", startedAt, {
       ...durationContext,
       generationElapsedMs: Date.now() - generationStartedAt,
+      orientationCorrected: orientation.corrected,
       status: "ok",
     });
 
