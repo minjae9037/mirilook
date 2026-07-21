@@ -1110,8 +1110,10 @@ function AdminConsultationImageGroup({
           {images.length}장
         </span>
       </div>
+      {/* 추천 9장·상담 9장이 앱과 같은 3x3 격자로 보이도록 3열 고정.
+          (기존 xl:grid-cols-4는 9장이 4·4·1로 끊겨 격자가 깨졌다.) */}
       {images.length ? (
-        <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
+        <div className="mt-3 grid grid-cols-3 gap-2">
           {images.map((image, index) => (
             <a
               className="group overflow-hidden rounded-md border border-white/10 bg-[#15130f] transition hover:border-[#f3d28a]/60"
