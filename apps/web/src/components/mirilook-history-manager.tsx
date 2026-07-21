@@ -1148,8 +1148,16 @@ function HistoryDetailDialog({
   const resultImages = item.images.slice(0, 9);
   const outfitImages = item.outfitImages?.slice(0, 16) ?? [];
   const makeupImages = item.makeupImages?.slice(0, 4) ?? [];
+  // body로 포털: 조상에 transform/filter/backdrop-filter가 있으면 그 요소가
+  // position:fixed의 컨테이닝 블록이 돼 모달이 화면 중앙이 아닌 한쪽으로 쏠린다.
+  // (마이페이지에서 상담 기록 상세가 오른쪽으로 밀리던 문제)
+  const portalRoot = typeof document === "undefined" ? null : document.body;
 
-  return (
+  if (!portalRoot) {
+    return null;
+  }
+
+  return createPortal(
     <div
       aria-label={`${item.styleName} 상담 히스토리 상세`}
       aria-modal="true"
@@ -1223,7 +1231,8 @@ function HistoryDetailDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    portalRoot,
   );
 }
 
@@ -1293,12 +1302,14 @@ function HistoryImagePreviewDialog({
 }) {
   const image = preview.images[preview.index];
   const hasMultiple = preview.images.length > 1;
+  // 상세 모달과 동일 이유로 body 포털(조상 transform이 fixed 기준이 되는 문제).
+  const portalRoot = typeof document === "undefined" ? null : document.body;
 
-  if (!image) {
+  if (!image || !portalRoot) {
     return null;
   }
 
-  return (
+  return createPortal(
     <div
       aria-label="히스토리 이미지 크게 보기"
       aria-modal="true"
@@ -1369,7 +1380,8 @@ function HistoryImagePreviewDialog({
           </a>
         </div>
       </div>
-    </div>
+    </div>,
+    portalRoot,
   );
 }
 
