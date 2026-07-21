@@ -1,14 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
-import { Check, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { MirilookHomeStartButton } from "@/components/mirilook-home-start-button";
 import { MirilookMainNav } from "@/components/mirilook-main-nav";
-
-const FIT_BARS: Array<[string, number]> = [
-  ["얼굴형 적합도", 95],
-  ["분위기 매칭", 88],
-  ["트렌드 반영", 91],
-];
 
 export function MirilookHomeExperience() {
   return (
@@ -43,64 +36,26 @@ export function MirilookHomeExperience() {
             </div>
           </div>
 
-          <div className="ml-home-card mx-auto w-full max-w-[440px] rounded-[26px] p-5">
-            <div className="flex items-center gap-3">
-              <div className="ml-home-field relative size-14 shrink-0 overflow-hidden rounded-[16px]">
-                <Image
-                  src="/mock/style-samples/optimized/women-bob-real-thumb-160.webp"
-                  alt="추천 예시"
-                  fill
-                  sizes="56px"
-                  className="object-cover"
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[16px] font-extrabold">레이어드컷</span>
-                  <span className="ml-home-chip rounded-full px-2 py-0.5 text-[11px] font-bold">
-                    여성
-                  </span>
-                </div>
-                <div className="mt-1.5 flex gap-1.5">
-                  {["얼굴형", "트렌드"].map((c) => (
-                    <span
-                      key={c}
-                      className="ml-home-good-chip inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold"
-                    >
-                      <Check size={11} /> {c}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="text-right">
-                <span className="ml-home-accent text-[26px] font-extrabold leading-none">
-                  94
-                </span>
-                <p className="ml-home-faint text-[11px] font-bold">어울림</p>
-              </div>
+          {/* 우측: 앱 시연 영상(릴스) — 폰 목업 안에서 자동재생·무음·반복.
+              영상은 미리룩 실제 화면 흐름(로그인→사진3장→9장 추천→선택→9방향 상담)을
+              AI 생성 이미지로만 재현. 실제 고객/개인 사진은 사용하지 않는다. */}
+          <div className="ml-home-card mx-auto w-full max-w-[288px] rounded-[44px] p-2.5">
+            <div className="relative aspect-[9/19.5] w-full overflow-hidden rounded-[36px] bg-black/[0.04]">
+              <video
+                className="absolute inset-0 h-full w-full object-cover"
+                src="/reel/mirilook-demo.mp4"
+                poster="/reel/mirilook-demo-poster.jpg"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                aria-label="미리룩 앱 시연 영상 — AI 헤어스타일 추천 흐름"
+              />
             </div>
-
-            <div className="mt-5 grid gap-3">
-              {FIT_BARS.map(([label, value]) => (
-                <div key={label}>
-                  <div className="flex items-center justify-between text-[13px] font-bold">
-                    <span className="ml-home-sub">{label}</span>
-                    <span>{value}</span>
-                  </div>
-                  <div className="ml-home-meter mt-1.5 h-2 w-full overflow-hidden rounded-full">
-                    <div
-                      className="ml-home-meter-fill h-full rounded-full"
-                      style={{ width: `${value}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="ml-home-card-footer mt-5 flex items-center justify-between pt-4 text-[13px] font-bold">
-              <span className="ml-home-sub">9방향 상담 이미지 · 미용실 상담용</span>
-              <span className="ml-home-accent">잘 어울려요!</span>
-            </div>
+            <p className="ml-home-faint mb-1 mt-3 text-center text-[11.5px] font-semibold">
+              앱 시연 예시 · AI 생성 이미지
+            </p>
           </div>
         </div>
       </section>
