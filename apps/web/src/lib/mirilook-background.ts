@@ -18,6 +18,7 @@ export type PrepareBackgroundInput = {
   apiBaseUrl: string;
   audience?: string;
   hairColorId?: string;
+  hairColorHex?: string;
   hairColorName?: string;
   headers?: Record<string, string>;
   regionName?: string;
@@ -36,6 +37,7 @@ export async function prepareBackgroundSession(
       body: JSON.stringify({
         audience: input.audience,
         hairColorId: input.hairColorId,
+        hairColorHex: input.hairColorHex,
         hairColorName: input.hairColorName,
         regionName: input.regionName,
         selectedPreview: input.selectedPreview,
@@ -60,6 +62,7 @@ export type EnqueueBackgroundInput = {
   apiBaseUrl: string;
   audience: "male" | "female";
   hairColorId?: string;
+  hairColorHex?: string;
   hairColorName?: string;
   headers?: Record<string, string>;
   imageAssetIds: string[];
@@ -85,6 +88,7 @@ export async function enqueueBackgroundJob(
       body: JSON.stringify({
         audience: input.audience,
         hairColorId: input.hairColorId,
+        hairColorHex: input.hairColorHex,
         hairColorName: input.hairColorName,
         imageAssetIds: input.imageAssetIds,
         region: input.region,

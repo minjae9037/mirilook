@@ -5,6 +5,9 @@ export type MirilookConsultationJobPayload = {
   consultationShareToken?: string;
   finalProvider?: "gemini" | "openai";
   hairColorId?: string;
+  // 직접 고른 커스텀 컬러의 HEX(예 #ec4899). id === "custom"일 때 실제 색을
+  // 각도 생성까지 전달하기 위해 필요 — 없으면 서버가 natural-black으로 폴백한다.
+  hairColorHex?: string;
   hairColorName?: string;
   imageAssetIds: string[];
   ownerProfileId?: string;
@@ -44,6 +47,7 @@ export function validateConsultationJobPayload(value: unknown) {
     consultationShareToken: text(value.consultationShareToken, 160) ?? undefined,
     finalProvider: value.finalProvider === "openai" ? "openai" : "gemini",
     hairColorId: text(value.hairColorId, 120) ?? undefined,
+    hairColorHex: text(value.hairColorHex, 9) ?? undefined,
     hairColorName: text(value.hairColorName, 120) ?? undefined,
     imageAssetIds,
     ownerProfileId: text(value.ownerProfileId, 120) ?? undefined,

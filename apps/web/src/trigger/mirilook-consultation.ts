@@ -156,6 +156,12 @@ export const MirilookGenerateConsultationTask = task({
         });
         form.append("styleId", payload.selectedStyleId);
         form.append("hairColorId", payload.hairColorId ?? "natural-black");
+        // 직접 고른 커스텀 컬러(id === "custom")는 HEX가 있어야 각도 생성에
+        // 실제 색이 반영된다. 없으면 angle 라우트가 natural-black으로 폴백해
+        // 추천 9장은 컬러가 맞는데 상담 9장만 검정으로 나오는 버그가 생긴다.
+        if (payload.hairColorHex) {
+          form.append("customHairColorHex", payload.hairColorHex);
+        }
         form.append("audience", payload.audience);
         form.append("region", payload.region ?? "korea");
         form.append("angleIndex", String(angleIndex));
