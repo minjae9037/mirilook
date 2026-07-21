@@ -140,6 +140,7 @@ type AdminProfileLookupRow = {
 };
 
 const adminRecentConsultationLimit = 50;
+const adminRecentPaymentLimit = 50;
 const adminConsultationAssetTypes: AdminConsultationAssetType[] = [
   "final_angle",
   "source_photo",
@@ -148,10 +149,11 @@ const adminConsultationAssetTypes: AdminConsultationAssetType[] = [
 ];
 
 export async function loadAdminOperationsSummary(
-  options: { consultationPage?: number } = {},
+  options: { consultationPage?: number; paymentPage?: number } = {},
 ): Promise<AdminOperationsSummary> {
-  // 상담 히스토리는 건수가 많아 50개씩 끊어 읽는다(전체 건수는 sessionCount로 표시).
+  // 상담 히스토리·결제 이벤트는 건수가 많아 50개씩 끊어 읽는다(전체 건수는 count로 표시).
   const consultationPage = Math.max(1, Math.floor(options.consultationPage ?? 1));
+  const paymentPage = Math.max(1, Math.floor(options.paymentPage ?? 1));
   const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
@@ -235,9 +237,12 @@ export async function loadAdminOperationsSummary(
         "community_posts",
         "id, title, body, post_type, purpose, requester_gender, target_gender, dm_policy, status, created_at",
       ),
-      selectRecent(
+      // 결제 이벤트는 매출 확인용이라 스토어·구매자까지 보여주고 페이지로 넘긴다.
+      selectRecentPaged(
         "payment_events",
-        "id, payment_id, product_id, status, amount, verified, created_at",
+        "id, payment_id, product_id, provider, event_type, status, amount, currency, verified, profile_id, buyer_email, created_at",
+        paymentPage,
+        adminRecentPaymentLimit,
       ),
       selectRecent(
         "hair_money_ledger",
@@ -896,19 +901,38 @@ export async function loadAdminOperationsSummary(
         },
         {
           categories: ["revenue"],
-          description: "결제 검증과 투표 노출 상품 처리 상태입니다.",
+          description:
+            "앱 인앱결제(App Store·Google Play)와 웹 결제를 모두 포함한 결제 이벤트입니다. 최신순 50건씩 표시합니다.",
           emptyText: "아직 결제 이벤트가 없습니다.",
+          pagination: {
+            page: paymentPage,
+            pageCount: Math.max(
+              1,
+              Math.ceil((paymentCount.count || 0) / adminRecentPaymentLimit),
+            ),
+            pageSize: adminRecentPaymentLimit,
+            param: "paymentPage",
+            tab: "revenue" as const,
+            total: paymentCount.count || 0,
+          },
           items: recentPayments.map((row) => ({
             id: text(row.id),
             meta: joinMeta([
               text(row.product_id),
               amount(row.amount),
+              text(row.currency),
               row.verified === true ? "검증됨" : "미검증",
+              text(row.event_type),
               formatDate(row.created_at),
             ]),
             status: text(row.status),
-            subtitle: text(row.payment_id),
-            title: "PortOne 결제 이벤트",
+            subtitle: joinMeta([
+              text(row.buyer_email) || (text(row.profile_id) ? `고객 ${text(row.profile_id).slice(0, 12)}` : ""),
+              text(row.payment_id),
+            ]),
+            // 결제 수단을 하드코딩하지 않고 provider로 구분한다(예전엔 인앱결제도
+            // "PortOne 결제 이벤트"로 표시돼 매출 탭에서 식별이 안 됐다).
+            title: describePaymentProvider(text(row.provider)),
           })),
           title: "최근 결제 이벤트",
         },
@@ -1104,6 +1128,34 @@ async function countRows(tableName: string): Promise<CountResult> {
   }
 
   return { count: result.count ?? 0 };
+}
+
+// 페이지 단위 조회(최신순). selectRecent와 달리 전체를 넘겨볼 수 있다.
+async function selectRecentPaged(
+  tableName: string,
+  columns: string,
+  page: number,
+  pageSize: number,
+) {
+  const supabase = getSupabaseAdminClient();
+
+  if (!supabase) {
+    return [];
+  }
+
+  const from = (Math.max(1, page) - 1) * pageSize;
+  const result = await supabase
+    .from(tableName)
+    .select(columns)
+    .order("created_at", { ascending: false })
+    .range(from, from + pageSize - 1);
+
+  if (result.error) {
+    console.error(`admin ${tableName} paged select failed`, result.error);
+    return [];
+  }
+
+  return (result.data ?? []) as unknown as RecentRow[];
 }
 
 async function selectRecent(tableName: string, columns: string) {
@@ -1449,6 +1501,30 @@ async function selectCustomerProfiles(): Promise<RecentRow[]> {
     ...row,
     hair_money_balance: balanceByProfileId.get(text(row.id)) ?? 0,
   }));
+}
+
+// payment_events.provider → 운영자가 알아보는 결제수단 이름.
+// RevenueCat 스토어값(app_store/play_store)과 내부값(google_play) 모두 처리.
+function describePaymentProvider(provider: string) {
+  const key = provider.toLowerCase();
+
+  if (key === "app_store" || key === "apple" || key === "ios") {
+    return "인앱결제 · App Store (iOS)";
+  }
+
+  if (key === "play_store" || key === "google_play" || key === "android") {
+    return "인앱결제 · Google Play (Android)";
+  }
+
+  if (key === "inicis" || key === "kg_inicis") {
+    return "웹 결제 · KG이니시스";
+  }
+
+  if (key === "portone") {
+    return "웹 결제 · PortOne";
+  }
+
+  return provider ? `결제 · ${provider}` : "결제 이벤트";
 }
 
 function amount(value: unknown) {

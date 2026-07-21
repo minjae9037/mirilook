@@ -23,12 +23,16 @@ export default async function AdminPage({
   // 보던 탭이 유지되도록 하는 ?tab=... 을 읽는다.
   const params = await searchParams;
   const consultationPage = parsePositiveInt(params.consultationPage) ?? 1;
+  const paymentPage = parsePositiveInt(params.paymentPage) ?? 1;
   const initialTab = firstParam(params.tab);
   // 접근 제어는 미들웨어(proxy.ts)가 담당한다: 관리자 세션 쿠키 또는 Basic Auth가
   // 없으면 이 페이지에 도달하기 전에 401로 차단된다. (운영 환경 MIRILOOK_ADMIN_PASSWORD_SHA256)
   // 운영 홈/지표/서비스 연결/론칭 게이트는 운영 콘솔의 "운영 홈" 탭이 담당한다.
   const integrationItems = buildIntegrationItems();
-  const operationsSummary = await loadAdminOperationsSummary({ consultationPage });
+  const operationsSummary = await loadAdminOperationsSummary({
+    consultationPage,
+    paymentPage,
+  });
 
   return (
     <main className="min-h-screen bg-[#11100e] text-[#f8f1e5]">
