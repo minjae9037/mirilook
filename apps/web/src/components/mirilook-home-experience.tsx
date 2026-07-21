@@ -43,8 +43,8 @@ export function MirilookHomeExperience() {
             <div className="relative aspect-[9/19.5] w-full overflow-hidden rounded-[36px] bg-black/[0.04]">
               <video
                 className="absolute inset-0 h-full w-full object-cover"
-                src="/reel/mirilook-demo.mp4?v=2"
-                poster="/reel/mirilook-demo-poster.jpg?v=2"
+                src="/reel/mirilook-demo.mp4?v=3"
+                poster="/reel/mirilook-demo-poster.jpg?v=3"
                 autoPlay
                 muted
                 loop
