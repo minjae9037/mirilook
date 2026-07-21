@@ -1303,6 +1303,8 @@ function HistoryImagePreviewDialog({
   const image = preview.images[preview.index];
   const hasMultiple = preview.images.length > 1;
   // 상세 모달과 동일 이유로 body 포털(조상 transform이 fixed 기준이 되는 문제).
+  // z-index도 상세 모달(z-1000)보다 위여야 한다 — z-50이면 상세 모달 뒤에 깔려
+  // 이미지를 눌러도 아무 반응 없는 것처럼 보인다.
   const portalRoot = typeof document === "undefined" ? null : document.body;
 
   if (!image || !portalRoot) {
@@ -1313,7 +1315,7 @@ function HistoryImagePreviewDialog({
     <div
       aria-label="히스토리 이미지 크게 보기"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/84 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/84 p-4 backdrop-blur-sm"
       onClick={onClose}
       role="dialog"
     >
