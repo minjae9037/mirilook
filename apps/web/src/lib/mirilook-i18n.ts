@@ -24,6 +24,71 @@ export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-13";
 type TranslationValue = Record<Exclude<MirilookLocale, "ko">, string>;
 
 const exactEntries: Array<[string, TranslationValue]> = [
+  // 스튜디오 위저드 단계 라벨(성별 → 동의 → 사진 …)과 잔액 부족 팝업.
+  [
+    "성별",
+    {
+      zh: "性别",
+      ja: "性別",
+      en: "Gender",
+    },
+  ],
+  [
+    "추천 서비스 선택",
+    {
+      zh: "选择推荐服务",
+      ja: "おすすめサービスの選択",
+      en: "Choose a service",
+    },
+  ],
+  [
+    "사진 사용 동의",
+    {
+      zh: "同意使用照片",
+      ja: "写真利用への同意",
+      en: "Photo use consent",
+    },
+  ],
+  [
+    "Hair Money 충전 후 계속하기",
+    {
+      zh: "充值 Hair Money 后继续",
+      ja: "Hair Money をチャージして続ける",
+      en: "Top up Hair Money to continue",
+    },
+  ],
+  [
+    "스타일 추천 1회에는 Hair Money",
+    {
+      zh: "每次发型推荐需要 Hair Money",
+      ja: "スタイル提案1回には Hair Money",
+      en: "One style recommendation requires Hair Money",
+    },
+  ],
+  [
+    "아래에서 충전하면 지금 올린 사진을 그대로 둔 채 이어서 진행됩니다.",
+    {
+      zh: "在下方充值后，已上传的照片会保留，可直接继续。",
+      ja: "下でチャージすると、アップロード済みの写真はそのままで続けられます。",
+      en: "Top up below and continue right where you left off — your uploaded photos are kept.",
+    },
+  ],
+  [
+    "충전 완료 — 계속하기",
+    {
+      zh: "充值完成 — 继续",
+      ja: "チャージ完了 — 続ける",
+      en: "Topped up — continue",
+    },
+  ],
+  [
+    "잔액을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    {
+      zh: "无法确认余额。请稍后再试。",
+      ja: "残高を確認できませんでした。しばらくしてからもう一度お試しください。",
+      en: "We couldn't check your balance. Please try again in a moment.",
+    },
+  ],
   [
     "표시된 외화 금액은 유럽중앙은행 참고환율 기준의 참고값이며, 실제 결제는 원화로 청구됩니다. (환율 기준일",
     {
