@@ -3,8 +3,10 @@
 // 표기한다(등록 아님) — 허위표시 방지(특허법 제224조·표시광고법).
 export function MirilookPatentNotice({ className = "" }: { className?: string }) {
   return (
+    // 각주라 결과 이미지보다 시선을 끌면 안 된다 — 11px에서 2px 낮춘 9px.
+    // 줄간격도 함께 좁히지 않으면 글자만 작아지고 덩어리 높이는 그대로다.
     <aside
-      className={`rounded-md border border-[#2b281f] bg-[#0f0e0c]/60 px-3 py-2.5 text-[11px] leading-5 text-[#8f826f] ${className}`}
+      className={`rounded-md border border-[#2b281f] bg-[#0f0e0c]/60 px-3 py-2 text-[9px] leading-4 text-[#8f826f] ${className}`}
     >
       <p className="text-[#b8aa95]">
         ※ 본 화면의 다방향 헤어스타일 이미지 제공 기술과 화면 디자인은 특허·디자인
