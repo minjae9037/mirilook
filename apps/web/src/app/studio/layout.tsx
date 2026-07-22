@@ -185,7 +185,8 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
           </div>
         ) : null}
 
-        <div ref={stageRef}>
+        {/* ml-studio: 위저드 본문에만 적용되는 토스풍 리스킨 스코프(globals.css). */}
+        <div className="ml-studio" ref={stageRef}>
           {teasing ? (
             <MirilookStudioTeaser dark={dark} pageBg={pageBg}>
               <MirilookStudio />

@@ -4589,10 +4589,10 @@ export function MirilookStudio() {
     const next = nextStep(step);
     const showNext = Boolean(next) && step !== "summary";
     return (
-      <div className="mt-1 flex items-center justify-between gap-3">
+      <div className="mt-4 flex items-center justify-between gap-3">
         {prev ? (
           <button
-            className="inline-flex h-11 items-center gap-1.5 rounded-md border border-white/12 px-4 text-sm font-bold text-[#e7dccb] transition hover:bg-white/8"
+            className="inline-flex h-13 min-h-[3.25rem] items-center gap-1.5 rounded-md border border-white/12 px-5 text-[15px] font-bold text-[#e7dccb] transition active:scale-[0.98] hover:bg-white/8"
             onClick={() => router.push(stepHref(prev))}
             type="button"
           >
@@ -4603,7 +4603,7 @@ export function MirilookStudio() {
         )}
         {showNext ? (
           <button
-            className="inline-flex h-11 items-center gap-1.5 rounded-md bg-[#f3d28a] px-5 text-sm font-black text-[#1a1712] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:bg-[#6b5b36] disabled:text-[#d8cbb8]"
+            className="inline-flex min-h-[3.25rem] items-center gap-1.5 rounded-md bg-[#f3d28a] px-7 text-[15px] font-black text-[#1a1712] transition active:scale-[0.98] hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:bg-[#6b5b36] disabled:text-[#d8cbb8]"
             disabled={!stepCanProceed[step] || (step === "photos" && photoStepBalanceChecking)}
             onClick={() => {
               // 사진 → 스타일로 넘어갈 때만 Hair Money 잔액을 먼저 확인한다.
@@ -5696,11 +5696,14 @@ function AudienceSelector({
   onChange: (audience: MirilookAudience) => void;
 }) {
   return (
-    <section className="mb-4 rounded-md border border-[#c9a96a]/35 bg-[#201a12]/88 p-4">
-      <p className="text-center text-sm font-semibold text-[#f3d28a] sm:text-left">
-        먼저 추천 서비스를 선택해 주세요.
+    <section className="mb-4 rounded-md border border-[#c9a96a]/35 bg-[#201a12]/88 p-5 sm:p-7">
+      <p className="text-center text-xl font-black leading-8 text-[#fffaf1] sm:text-left sm:text-2xl">
+        어떤 헤어를 찾으세요?
       </p>
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3">
+      <p className="mt-1.5 text-center text-sm font-medium leading-6 text-[#b8aa95] sm:text-left">
+        선택한 서비스에 맞춰 스타일과 상담 이미지를 준비해요.
+      </p>
+      <div className="mt-5 grid grid-cols-2 gap-2.5 sm:gap-3">
         {audienceOptions.map((option) => {
           const selected = option.id === selectedAudience;
           const toneClass =
@@ -5718,7 +5721,7 @@ function AudienceSelector({
 
           return (
             <button
-              className={`relative flex min-h-20 items-center justify-center rounded-md border px-2 py-4 text-center transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3d28a] sm:px-4 sm:py-5 ${toneClass}`}
+              className={`relative flex min-h-28 items-center justify-center rounded-md border px-2 py-5 text-center transition active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3d28a] sm:min-h-32 sm:px-4 sm:py-6 ${toneClass}`}
               key={option.id}
               onClick={() => onChange(option.id)}
               type="button"
@@ -5754,10 +5757,10 @@ function ConsentNotice({
   onChange: (accepted: boolean) => void;
 }) {
   return (
-    <section className="mb-5 rounded-md border border-[#c9a96a]/35 bg-[#30271a]/60 p-5">
+    <section className="mb-5 rounded-md border border-[#c9a96a]/35 bg-[#30271a]/60 p-5 sm:p-7">
       <label className="grid cursor-pointer gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
         <span>
-          <span className="block text-base font-bold leading-7 text-[#fffaf1] md:text-lg">
+          <span className="block text-lg font-black leading-8 text-[#fffaf1] md:text-xl">
             얼굴 사진을 AI 헤어스타일 추천과 상담 이미지 생성에 사용하는 것에 동의합니다.
           </span>
           <span className="mt-3 block text-sm leading-6 text-[#d8cbb8]">

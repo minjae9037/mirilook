@@ -830,3 +830,67 @@ html[data-mirilook-theme="light"] .ml-home-secondary-button {
     padding-bottom: 0;
   }
 }
+
+/* =========================================================================
+   스튜디오 위저드(성별 → 요약) 토스풍 리스킨
+   -------------------------------------------------------------------------
+   본문 마크업은 옛 다크/골드 팔레트로 작성돼 있고, 색은 위쪽 light 리맵이
+   이미 핑크 라이트로 바꿔준다. 하지만 "모양"(라운드 6px, 그림자 없음, 얇은
+   보더)이 그대로라 홈 화면(큰 라운드·부드러운 그림자·핑크 헤어라인)과 따로
+   놀았다. 여기서 형태·간격·타이포만 홈과 같은 언어로 끌어올린다.
+   컴포넌트 수가 수백 개라 클래스 일괄 수정 대신 스코프 CSS로 처리한다.
+   ========================================================================= */
+.ml-studio {
+  --mls-accent: #fb5c8d;
+  --mls-accent-strong: #ea4a7c;
+  --mls-hairline: #f0e3e9;
+  --mls-card-shadow: 0 12px 32px -20px rgba(25, 31, 40, 0.28);
+  --mls-radius: 18px;
+}
+
+html[data-mirilook-theme="dark"] .ml-studio {
+  --mls-hairline: #2a2633;
+  --mls-card-shadow: 0 14px 34px -22px rgba(0, 0, 0, 0.72);
+}
+
+/* 카드·패널·버튼의 각진 모서리를 홈과 같은 큰 라운드로 */
+.ml-studio [class*="rounded-md"] {
+  border-radius: 14px;
+}
+
+/* 단계 본문의 최상위 카드(보더가 있는 섹션)는 더 크게 + 부드러운 그림자 */
+.ml-studio section[class*="rounded-md"][class*="border"],
+.ml-studio > div > div[class*="rounded-md"][class*="border"],
+.ml-studio > div > section[class*="rounded-md"] {
+  border-radius: var(--mls-radius);
+  box-shadow: var(--mls-card-shadow);
+}
+
+/* 보더를 홈의 핑크 헤어라인 톤으로 (라이트에서 갈색 보더가 탁해 보였다) */
+html[data-mirilook-theme="light"] .ml-studio [class*="border-[#2b281f"],
+html[data-mirilook-theme="light"] .ml-studio [class*="border-[#c9a96a"] {
+  border-color: var(--mls-hairline);
+}
+
+/* 주 버튼(구 골드 = 이제 핑크 그라디언트): 토스풍 알약 + 그림자 + 굵은 글자 */
+.ml-studio [class*="bg-[#f3d28a]"],
+.ml-studio [class*="bg-[#ffdf98]"] {
+  border-radius: 14px;
+  box-shadow: 0 12px 26px -14px rgba(234, 74, 124, 0.75);
+  font-weight: 800;
+}
+
+/* 업로드 카드의 점선 테두리도 핑크 톤으로 — 회갈색 점선이 낡아 보였다 */
+html[data-mirilook-theme="light"] .ml-studio [class*="border-dashed"] {
+  border-color: #f6cfdf;
+}
+
+/* 사진 카드 안 예시 원: 홈 카드처럼 은은한 핑크 링 */
+html[data-mirilook-theme="light"] .ml-studio [class*="shadow-[0_0_0_3px_rgba(201,169,106,0.16)]"] {
+  box-shadow: 0 0 0 4px rgba(251, 92, 141, 0.12);
+}
+
+/* 단계 이동 버튼 줄에 여백을 줘 본문과 붙지 않게 */
+.ml-studio [class*="rounded-md"] + .mt-1 {
+  margin-top: 0.75rem;
+}
