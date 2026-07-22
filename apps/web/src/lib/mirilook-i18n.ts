@@ -19,11 +19,955 @@ export const mirilookLocaleOptions: MirilookLocaleOption[] = [
 ];
 
 export const mirilookLocaleStorageKey = "mirilook_locale";
-export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-6";
+export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-7";
 
 type TranslationValue = Record<Exclude<MirilookLocale, "ko">, string>;
 
 const exactEntries: Array<[string, TranslationValue]> = [
+  [
+    "· 개발자:",
+    {
+      zh: "· 开发者：",
+      ja: "・開発者：",
+      en: "· Developer:",
+    },
+  ],
+  [
+    "계정·데이터 삭제 관련 문의는 jipsa.admin@gmail.com으로 접수해 주세요. 자세한 처리 기준은",
+    {
+      zh: "账号・数据删除相关咨询请发送至 jipsa.admin@gmail.com。详细处理标准请见",
+      ja: "アカウント・データ削除に関するお問い合わせは jipsa.admin@gmail.com までご連絡ください。詳しい処理基準は",
+      en: "For account/data deletion inquiries, please contact jipsa.admin@gmail.com. For detailed handling criteria, see",
+    },
+  ],
+  [
+    "미리룩 앱 또는",
+    {
+      zh: "Miri Look 应用或",
+      ja: "Miri Lookアプリ、または",
+      en: "the Miri Look app or",
+    },
+  ],
+  [
+    "항목에서",
+    {
+      zh: "项目中",
+      ja: "の項目で",
+      en: " section",
+    },
+  ],
+  [
+    "확인을 위해 계정 이메일을 입력한 뒤",
+    {
+      zh: "为进行验证，请输入账号邮箱后",
+      ja: "確認のため、アカウントのメールアドレスを入力した後",
+      en: "After entering your account email for verification,",
+    },
+  ],
+  [
+    "서비스 이용, 결제, 환불, 개인정보, 신고 관련 문의는",
+    {
+      zh: "服务使用、支付、退款、个人信息、举报相关咨询请",
+      ja: "サービス利用、決済、返金、個人情報、通報に関するお問い合わせは",
+      en: "For inquiries about service use, payment, refunds, personal information, or reports,",
+    },
+  ],
+  [
+    "는 로그인 후",
+    {
+      zh: "，登录后",
+      ja: "はログイン後",
+      en: " must be signed in to",
+    },
+  ],
+  [
+    "충전한 유상 H머니의 사용기간(유효기간)은 충전일로부터 1년입니다. 구매 후 7일 이내 사용하지 않은 유상 H머니는 청약철회(취소)하여 환불받을 수 있으며, 환불은 최초 결제하신 결제수단으로만 이루어집니다. 취소·환불· 교환의 구체적 기준은",
+    {
+      zh: "充值的付费Hair Money使用期限（有效期）自充值之日起为1年。购买后7天内未使用的付费Hair Money可通过撤回申请（取消）获得退款，退款仅退回至您最初使用的支付方式。取消・退款・换购的具体标准请见",
+      ja: "チャージした有償Hair Moneyの使用期間（有効期限）はチャージ日から1年間です。購入後7日以内に使用していない有償Hair Moneyは申込みの撤回（取消）により返金を受けることができ、返金は最初にご利用いただいた決済手段にのみ行われます。取消・返金・交換の具体的な基準は",
+      en: "The usage period (validity) of purchased paid Hair Money is 1 year from the date of top-up. Paid Hair Money not used within 7 days of purchase can be refunded by withdrawing the purchase (cancellation), and refunds are issued only to the original payment method used. For the detailed criteria on cancellations, refunds, and exchanges, see",
+    },
+  ],
+  [
+    "오류 코드:",
+    {
+      zh: "错误代码：",
+      ja: "エラーコード：",
+      en: "Error code:",
+    },
+  ],
+  [
+    "관심 있으신 미용실에서는",
+    {
+      zh: "您感兴趣的美发店",
+      ja: "気になる美容室では",
+      en: "At the salon you're interested in,",
+    },
+  ],
+  [
+    "또는",
+    {
+      zh: "或",
+      ja: "または",
+      en: "or",
+    },
+  ],
+  [
+    "· 사진",
+    {
+      zh: "· 照片",
+      ja: "・写真",
+      en: "· Photo",
+    },
+  ],
+  [
+    "까지 열람 가능",
+    {
+      zh: "前可查看",
+      ja: "まで閲覧可能",
+      en: " can be viewed until",
+    },
+  ],
+  [
+    "장 기준",
+    {
+      zh: "张为准",
+      ja: "枚基準",
+      en: " photos as the basis",
+    },
+  ],
+  [
+    "· 삭제되는 항목: 계정 정보, 프로필, 업로드한 얼굴 사진, 상담 결과·생성 이미지(",
+    {
+      zh: "· 删除的项目：账号信息、个人资料、上传的面部照片、咨询结果・生成图片（",
+      ja: "・削除される項目：アカウント情報、プロフィール、アップロードした顔写真、相談結果・生成画像（",
+      en: "· Items deleted: account information, profile, uploaded face photos, consultation results and generated images (",
+    },
+  ],
+  [
+    "건)",
+    {
+      zh: "件）",
+      ja: "件）",
+      en: " items)",
+    },
+  ],
+  [
+    "영구 삭제",
+    {
+      zh: "永久删除",
+      ja: "完全削除",
+      en: "Permanently delete",
+    },
+  ],
+  [
+    "으로 요청하셔도 됩니다.",
+    {
+      zh: "方式提出申请即可。",
+      ja: "でご依頼いただいても構いません。",
+      en: " you may also submit your request.",
+    },
+  ],
+  [
+    "직접 삭제가 어려우면",
+    {
+      zh: "如果难以自行删除，",
+      ja: "ご自身での削除が難しい場合は",
+      en: "If you have difficulty deleting it yourself,",
+    },
+  ],
+  [
+    "Hair Money가 함께 소멸",
+    {
+      zh: "Hair Money也将一并消失",
+      ja: "Hair Moneyも一緒に消滅",
+      en: "Hair Money will also be forfeited",
+    },
+  ],
+  [
+    "로그인하면",
+    {
+      zh: "登录后，",
+      ja: "ログインすると",
+      en: "When you sign in,",
+    },
+  ],
+  [
+    "만 14세 이상이며,",
+    {
+      zh: "年满14周岁，并且",
+      ja: "満14歳以上であり、",
+      en: "is at least 14 years old, and",
+    },
+  ],
+  [
+    "및 커뮤니티 무관용 정책에 동의하게 됩니다.",
+    {
+      zh: "以及社区零容忍政策。",
+      ja: "およびコミュニティのゼロトレランスポリシーに同意したことになります。",
+      en: "and agree to the community zero-tolerance policy.",
+    },
+  ],
+  [
+    "에 동의합니다. 미리룩 커뮤니티는",
+    {
+      zh: "。Miri Look社区",
+      ja: "に同意します。Miri Lookコミュニティは",
+      en: " agree to. The Miri Look community is",
+    },
+  ],
+  [
+    "댓글 접수",
+    {
+      zh: "评论已提交",
+      ja: "コメント受付",
+      en: "Comment received",
+    },
+  ],
+  [
+    "접수",
+    {
+      zh: "已提交",
+      ja: "受付",
+      en: "Submitted",
+    },
+  ],
+  [
+    "투표 대상",
+    {
+      zh: "投票对象",
+      ja: "投票対象",
+      en: "Poll target",
+    },
+  ],
+  [
+    "투표 저장",
+    {
+      zh: "保存投票",
+      ja: "投票を保存",
+      en: "Save vote",
+    },
+  ],
+  [
+    "신고 접수",
+    {
+      zh: "举报已提交",
+      ja: "通報受付",
+      en: "Report received",
+    },
+  ],
+  [
+    "리뷰 접수하기",
+    {
+      zh: "提交评价",
+      ja: "レビューを送信する",
+      en: "Submit review",
+    },
+  ],
+  [
+    "예약 문의 보내기",
+    {
+      zh: "发送预约咨询",
+      ja: "予約問い合わせを送る",
+      en: "Send reservation inquiry",
+    },
+  ],
+  [
+    "입점 신청 보내기",
+    {
+      zh: "发送入驻申请",
+      ja: "出店申請を送る",
+      en: "Send partnership application",
+    },
+  ],
+  [
+    "투표 요청 보내기",
+    {
+      zh: "发送投票请求",
+      ja: "投票リクエストを送る",
+      en: "Send poll request",
+    },
+  ],
+  [
+    "· 잔액",
+    {
+      zh: "· 余额",
+      ja: "・残高",
+      en: "· Balance",
+    },
+  ],
+  [
+    "· 충전한 유상 Hair Money의 사용기간(유효기간)은 충전일로부터",
+    {
+      zh: "· 充值的付费Hair Money使用期限（有效期）自充值之日起为",
+      ja: "・チャージした有償Hair Moneyの使用期間（有効期限）はチャージ日から",
+      en: "· The usage period (validity) of purchased paid Hair Money is, from the date of top-up,",
+    },
+  ],
+  [
+    "· 충전한 Hair Money의 사용기간(유효기간)은 충전일로부터",
+    {
+      zh: "· 充值的Hair Money使用期限（有效期）自充值之日起为",
+      ja: "・チャージしたHair Moneyの使用期間（有効期限）はチャージ日から",
+      en: "· The usage period (validity) of purchased Hair Money is, from the date of top-up,",
+    },
+  ],
+  [
+    "· Hair Money는 유상 충전 사이버머니이며 현재 충전 기준은 1 Hair Money당",
+    {
+      zh: "· Hair Money是付费充值的虚拟货币，目前充值标准为每1 Hair Money",
+      ja: "・Hair Moneyは有償チャージ型のサイバーマネーであり、現在のチャージ基準は1 Hair Moneyあたり",
+      en: "· Hair Money is a paid top-up virtual currency, and the current top-up rate is, per 1 Hair Money,",
+    },
+  ],
+  [
+    "% 할인",
+    {
+      zh: "% 折扣",
+      ja: "%割引",
+      en: "% off",
+    },
+  ],
+  [
+    "1 Hair Money는",
+    {
+      zh: "1 Hair Money为",
+      ja: "1 Hair Moneyは",
+      en: "1 Hair Money is",
+    },
+  ],
+  [
+    "같은 원화로 더 많은 Hair Money를 드립니다 — 충전 금액이 클수록 최대 약 26.5%까지 추가 적립됩니다. (1 Hair Money 정가 환산",
+    {
+      zh: "以相同的韩元金额提供更多的Hair Money — 充值金额越大，最多可额外获得约26.5%的赠送。（1 Hair Money 原价折算",
+      ja: "同じウォン金額でより多くのHair Moneyを差し上げます — チャージ金額が大きいほど、最大約26.5%まで追加付与されます。（1 Hair Money 正価換算",
+      en: "get more Hair Money for the same amount in KRW — the larger the top-up amount, the more bonus you receive, up to about 26.5% extra. (1 Hair Money at list-price conversion",
+    },
+  ],
+  [
+    "결제 정책",
+    {
+      zh: "支付政策",
+      ja: "決済ポリシー",
+      en: "Payment Policy",
+    },
+  ],
+  [
+    "결제 정책을 따르며, 환불은",
+    {
+      zh: "支付政策，退款",
+      ja: "決済ポリシーに従い、返金は",
+      en: "follows the Payment Policy, and refunds",
+    },
+  ],
+  [
+    "결제가 확인되면 로그인한 계정 지갑에 즉시 적립됩니다. 헤어스타일 추천을 요청할 때마다",
+    {
+      zh: "支付确认后将立即充值到您登录账号的钱包中。每次请求发型推荐时，",
+      ja: "決済が確認されると、ログイン中のアカウントのウォレットに即座に付与されます。ヘアスタイル提案をリクエストするたびに",
+      en: "Once payment is confirmed, it is instantly credited to your signed-in account wallet. Each time you request a hairstyle recommendation,",
+    },
+  ],
+  [
+    "년입니다.",
+    {
+      zh: "年。",
+      ja: "年間です。",
+      en: " year(s).",
+    },
+  ],
+  [
+    "원 ·",
+    {
+      zh: "韩元 ·",
+      ja: "ウォン・",
+      en: " KRW ·",
+    },
+  ],
+  [
+    "원 (VAT 포함)",
+    {
+      zh: "韩元（含增值税）",
+      ja: "ウォン（税込）",
+      en: " KRW (VAT included)",
+    },
+  ],
+  [
+    "원, VAT 포함 기준)이 차감되고, 생성 결과와 사용 내역으로 기록됩니다.",
+    {
+      zh: "韩元，含增值税）将被扣除，并记录为生成结果和使用记录。",
+      ja: "ウォン、税込基準）が差し引かれ、生成結果と利用履歴として記録されます。",
+      en: " KRW, VAT included) will be deducted and recorded as a generation result and usage history.",
+    },
+  ],
+  [
+    "원, VAT 포함) 충전한 Hair Money는 회원 계정에 적립되고 추천 사용 시 차감됩니다.",
+    {
+      zh: "韩元，含增值税）充值的Hair Money将存入会员账号，并在使用推荐服务时扣除。",
+      ja: "ウォン、税込）チャージしたHair Moneyは会員アカウントに付与され、提案利用時に差し引かれます。",
+      en: " KRW, VAT included). Purchased Hair Money is credited to your member account and deducted when you use a recommendation.",
+    },
+  ],
+  [
+    "원(VAT 포함) 기준입니다.",
+    {
+      zh: "韩元（含增值税）为准。",
+      ja: "ウォン（税込）が基準です。",
+      en: " KRW (VAT included).",
+    },
+  ],
+  [
+    "원(VAT 포함)이며, 추천 1회는",
+    {
+      zh: "韩元（含增值税），单次推荐为",
+      ja: "ウォン（税込）であり、提案1回は",
+      en: " KRW (VAT included), and one recommendation is",
+    },
+  ],
+  [
+    "원(VAT 포함)입니다.",
+    {
+      zh: "韩元（含增值税）。",
+      ja: "ウォン（税込）です。",
+      en: " KRW (VAT included).",
+    },
+  ],
+  [
+    "을 따르며, 환불은",
+    {
+      zh: "，退款",
+      ja: "に従い、返金は",
+      en: ", and refunds",
+    },
+  ],
+  [
+    "자세한 내용은",
+    {
+      zh: "详细内容请见",
+      ja: "詳細は",
+      en: "For details, see",
+    },
+  ],
+  [
+    "잔액 새로고침",
+    {
+      zh: "刷新余额",
+      ja: "残高を更新",
+      en: "Refresh balance",
+    },
+  ],
+  [
+    "주문내역에서 신청할 수 있습니다.",
+    {
+      zh: "可在订单记录中申请。",
+      ja: "注文履歴から申請できます。",
+      en: "You can request this from your order history.",
+    },
+  ],
+  [
+    "충전한 Hair Money의 사용기간(유효기간)은 충전일로부터",
+    {
+      zh: "充值的Hair Money使用期限（有效期）自充值之日起为",
+      ja: "チャージしたHair Moneyの使用期間（有効期限）はチャージ日から",
+      en: "The usage period (validity) of purchased Hair Money is, from the date of top-up,",
+    },
+  ],
+  [
+    "헤어 추천 1회",
+    {
+      zh: "1次发型推荐",
+      ja: "ヘア提案1回",
+      en: "1 hairstyle recommendation",
+    },
+  ],
+  [
+    "Hair Money 충전하기",
+    {
+      zh: "充值Hair Money",
+      ja: "Hair Moneyをチャージする",
+      en: "Top up Hair Money",
+    },
+  ],
+  [
+    "Hair Money, 추가 상담 세트(9방향) 생성 1회",
+    {
+      zh: "Hair Money，额外生成1次咨询套装（9个方向）",
+      ja: "Hair Money、追加の相談セット（9方向）生成1回",
+      en: "Hair Money, 1 additional consultation set (9 angles) generation",
+    },
+  ],
+  [
+    "Hair Money가 차감됩니다.",
+    {
+      zh: "将被扣除Hair Money。",
+      ja: "Hair Moneyが差し引かれます。",
+      en: " Hair Money will be deducted.",
+    },
+  ],
+  [
+    "· 기본은 전체 업로드입니다. 제외할 사진을 누르면 체크가 해제됩니다.",
+    {
+      zh: "· 默认为全部上传。点击要排除的照片即可取消勾选。",
+      ja: "・デフォルトは全件アップロードです。除外したい写真をタップするとチェックが外れます。",
+      en: "· By default, all photos are uploaded. Tap a photo to exclude it and its checkmark will be cleared.",
+    },
+  ],
+  [
+    "· 원본",
+    {
+      zh: "· 原图",
+      ja: "・オリジナル",
+      en: "· Original",
+    },
+  ],
+  [
+    "선택된 사진",
+    {
+      zh: "已选照片",
+      ja: "選択した写真",
+      en: "Selected photos",
+    },
+  ],
+  [
+    "장 · 결과",
+    {
+      zh: "张 · 结果",
+      ja: "枚・結果",
+      en: " photos · Result",
+    },
+  ],
+  [
+    "장 · 추천",
+    {
+      zh: "张 · 推荐",
+      ja: "枚・提案",
+      en: " photos · Recommendation",
+    },
+  ],
+  [
+    "피드",
+    {
+      zh: "动态",
+      ja: "フィード",
+      en: "Feed",
+    },
+  ],
+  [
+    "피드에 올리기",
+    {
+      zh: "发布到动态",
+      ja: "フィードに投稿",
+      en: "Post to feed",
+    },
+  ],
+  [
+    "회수",
+    {
+      zh: "撤回",
+      ja: "取り消し",
+      en: "Retract",
+    },
+  ],
+  [
+    "발송하기",
+    {
+      zh: "发送",
+      ja: "送信する",
+      en: "Send",
+    },
+  ],
+  [
+    "미리룩의 AI 추천 이미지는 상담 참고용이며 실제 시술 결과와 다를 수 있어요. ·",
+    {
+      zh: "Miri Look的AI推荐图片仅供咨询参考，可能与实际施术结果有所不同。·",
+      ja: "Miri LookのAI提案画像は相談の参考用であり、実際の施術結果とは異なる場合があります。・",
+      en: "Miri Look's AI recommendation images are for consultation reference only and may differ from actual results. ·",
+    },
+  ],
+  [
+    "또는 공유 아이콘 →",
+    {
+      zh: "或分享图标 →",
+      ja: "または共有アイコン →",
+      en: "or the share icon →",
+    },
+  ],
+  [
+    "로 열려 있어요. 이 상태에서는",
+    {
+      zh: "已打开。在此状态下，",
+      ja: "で開かれています。この状態では",
+      en: " is open. In this state,",
+    },
+  ],
+  [
+    "로 열면 정상 작동해요.",
+    {
+      zh: "打开即可正常使用。",
+      ja: "で開くと正常に動作します。",
+      en: " opens it correctly.",
+    },
+  ],
+  [
+    "메뉴 →",
+    {
+      zh: "菜单 →",
+      ja: "メニュー →",
+      en: "Menu →",
+    },
+  ],
+  [
+    "크롬",
+    {
+      zh: "Chrome",
+      ja: "Chrome",
+      en: "Chrome",
+    },
+  ],
+  [
+    "화면",
+    {
+      zh: "画面",
+      ja: "画面",
+      en: "screen",
+    },
+  ],
+  [
+    "알림 받기",
+    {
+      zh: "接收通知",
+      ja: "通知を受け取る",
+      en: "Receive notifications",
+    },
+  ],
+  [
+    "해제",
+    {
+      zh: "解除",
+      ja: "解除",
+      en: "Turn off",
+    },
+  ],
+  [
+    "카드 결제 (KG이니시스)",
+    {
+      zh: "银行卡支付（KG Inicis）",
+      ja: "カード決済（KG イニシス）",
+      en: "Card payment (KG Inicis)",
+    },
+  ],
+  [
+    ", 충전은",
+    {
+      zh: "，充值",
+      ja: "、チャージは",
+      en: ", and top-up",
+    },
+  ],
+  [
+    "선택한 사진 저장",
+    {
+      zh: "保存所选照片",
+      ja: "選択した写真を保存",
+      en: "Save selected photos",
+    },
+  ],
+  [
+    "프로필 저장",
+    {
+      zh: "保存资料",
+      ja: "プロフィールを保存",
+      en: "Save profile",
+    },
+  ],
+  [
+    "· 리뷰",
+    {
+      zh: "· 评价",
+      ja: "・レビュー",
+      en: "· Review",
+    },
+  ],
+  [
+    "님에게 DM 보내기",
+    {
+      zh: "发私信",
+      ja: "さんにDMを送る",
+      en: " Send a DM to",
+    },
+  ],
+  [
+    "등록",
+    {
+      zh: "注册",
+      ja: "登録",
+      en: "Register",
+    },
+  ],
+  [
+    "에게 DM",
+    {
+      zh: "私信",
+      ja: "へDM",
+      en: " DM to",
+    },
+  ],
+  [
+    "이 이용자를 차단할까요?\\n차단하면 이 이용자의 게시물이 내 피드에서 즉시 사라지고, 운영자에게 통지됩니다.",
+    {
+      zh: "要屏蔽此用户吗？\\n屏蔽后，该用户的帖子将立即从我的动态中消失，并会通知给运营方。",
+      ja: "このユーザーをブロックしますか？\\nブロックすると、このユーザーの投稿が自分のフィードから即座に非表示になり、運営者に通知されます。",
+      en: "Block this user?\\nBlocking will immediately remove this user's posts from your feed and notify the admins.",
+    },
+  ],
+  [
+    "jpg, png, webp · 최대",
+    {
+      zh: "jpg、png、webp · 最大",
+      ja: "jpg、png、webp・最大",
+      en: "jpg, png, webp · Max",
+    },
+  ],
+  [
+    "/2장 완료",
+    {
+      zh: "/2张完成",
+      ja: "/2枚完了",
+      en: "/2 photos done",
+    },
+  ],
+  [
+    "2 Hair Money로 투표 올리기",
+    {
+      zh: "以2 Hair Money发起投票",
+      ja: "2 Hair Moneyで投票を投稿",
+      en: "Post a poll for 2 Hair Money",
+    },
+  ],
+  [
+    "9장 중",
+    {
+      zh: "9张中",
+      ja: "9枚中",
+      en: "of 9 photos",
+    },
+  ],
+  [
+    "가이드",
+    {
+      zh: "指南",
+      ja: "ガイド",
+      en: "Guide",
+    },
+  ],
+  [
+    "개가 필요합니다.",
+    {
+      zh: "个为必需。",
+      ja: "個必要です。",
+      en: " are required.",
+    },
+  ],
+  [
+    "검색 결과를 추가하면 현재 선택된",
+    {
+      zh: "添加搜索结果后，当前已选择的",
+      ja: "検索結果を追加すると、現在選択されている",
+      en: "If you add a search result, the currently selected",
+    },
+  ],
+  [
+    "공유 링크 만들기",
+    {
+      zh: "创建分享链接",
+      ja: "共有リンクを作成",
+      en: "Create share link",
+    },
+  ],
+  [
+    "그룹에 들어갑니다.",
+    {
+      zh: "将加入该分组。",
+      ja: "グループに入ります。",
+      en: " will join the group.",
+    },
+  ],
+  [
+    "레퍼런스 추가",
+    {
+      zh: "添加参考",
+      ja: "参考を追加",
+      en: "Add reference",
+    },
+  ],
+  [
+    "명 선택 · 추가 가능",
+    {
+      zh: "人已选 · 可继续添加",
+      ja: "人選択・追加可能",
+      en: " selected · more can be added",
+    },
+  ],
+  [
+    "사진 적합도 ·",
+    {
+      zh: "照片匹配度 ·",
+      ja: "写真適合度・",
+      en: "Photo suitability ·",
+    },
+  ],
+  [
+    "상담용 9장 생성에는 Hair Money",
+    {
+      zh: "生成咨询用9张图片需要Hair Money",
+      ja: "相談用9枚の生成にはHair Money",
+      en: "Generating the 9 consultation images requires Hair Money",
+    },
+  ],
+  [
+    "상담용 이미지",
+    {
+      zh: "咨询用图片",
+      ja: "相談用画像",
+      en: "Consultation images",
+    },
+  ],
+  [
+    "아래에서 충전하면 추천 화면을 그대로 둔 채 이어서 생성됩니다.",
+    {
+      zh: "在下方充值后，将保留当前推荐画面并继续生成。",
+      ja: "以下でチャージすると、提案画面をそのままにして生成が続行されます。",
+      en: "If you top up below, generation will continue without leaving the recommendation screen.",
+    },
+  ],
+  [
+    "에 이미지 링크 추가",
+    {
+      zh: "添加图片链接至",
+      ja: "に画像リンクを追加",
+      en: " add an image link to",
+    },
+  ],
+  [
+    "원, VAT 포함 기준)가 차감됩니다.",
+    {
+      zh: "韩元，含增值税）将被扣除。",
+      ja: "ウォン、税込基準）が差し引かれます。",
+      en: " KRW, VAT included) will be deducted.",
+    },
+  ],
+  [
+    "원하는 컷을 여러 개 선택할 수 있습니다. 선택하지 않으면",
+    {
+      zh: "可以选择多个想要的发型。若不选择，",
+      ja: "希望するカットを複数選択できます。選択しない場合は",
+      en: "You can select multiple cuts you want. If none are selected,",
+    },
+  ],
+  [
+    "을 사용하려면 얼굴 사진을 AI 헤어스타일 추천과 상담 이미지 생성에 사용하는 것에 먼저 동의해 주세요.",
+    {
+      zh: "若要使用，请先同意将面部照片用于AI发型推荐及咨询图片生成。",
+      ja: "を利用するには、顔写真をAIヘアスタイル提案および相談画像生成に使用することに、まず同意してください。",
+      en: " requires you to first agree to using your face photo for AI hairstyle recommendations and consultation image generation.",
+    },
+  ],
+  [
+    "장 · 추천 결과 1칸 사용",
+    {
+      zh: "张 · 使用1个推荐结果位",
+      ja: "枚・提案結果1枠使用",
+      en: " photos · uses 1 recommendation result slot",
+    },
+  ],
+  [
+    "장 기준 · 결과",
+    {
+      zh: "张为准 · 结果",
+      ja: "枚基準・結果",
+      en: " photos basis · Result",
+    },
+  ],
+  [
+    "장이 생성되지 않았습니다. 다시 생성해도 추가 비용은 없습니다.",
+    {
+      zh: "张未生成。重新生成不会产生额外费用。",
+      ja: "枚が生成されませんでした。再生成しても追加費用はかかりません。",
+      en: " photos were not generated. Regenerating incurs no additional cost.",
+    },
+  ],
+  [
+    "전용 후보 안에서 자동 추천합니다.",
+    {
+      zh: "将在专属候选中自动推荐。",
+      ja: "専用候補の中から自動で提案します。",
+      en: "Automatically recommends from within the dedicated candidates.",
+    },
+  ],
+  [
+    "추가",
+    {
+      zh: "添加",
+      ja: "追加",
+      en: "Add",
+    },
+  ],
+  [
+    "추천 목적과 헤어 컬러, 필요한 메모를 먼저 확인하면 더 정확한 9개 이미지를 만들 수 있습니다. 실제 추천 1회당",
+    {
+      zh: "先确认推荐目的、发色和所需备注，可以生成更精准的9张图片。实际每次推荐",
+      ja: "提案の目的とヘアカラー、必要なメモを先にご確認いただくと、より精度の高い9枚の画像を作成できます。実際の提案1回あたり",
+      en: "Checking your recommendation purpose, hair color, and any notes in advance helps create more accurate images from the 9. Per actual recommendation,",
+    },
+  ],
+  [
+    "현재",
+    {
+      zh: "当前",
+      ja: "現在",
+      en: "Currently",
+    },
+  ],
+  [
+    "휠을 마우스나 손으로 움직여 원하는 색을 고른 뒤, 아래",
+    {
+      zh: "用鼠标或手指移动色轮选择想要的颜色后，在下方",
+      ja: "ホイールをマウスや指で動かして好きな色を選んだ後、下の",
+      en: "Move the wheel with your mouse or finger to pick the color you want, then below,",
+    },
+  ],
+  [
+    "(선택 · 최대",
+    {
+      zh: "（选填 · 最多",
+      ja: "（任意・最大",
+      en: "(Optional · Max",
+    },
+  ],
+  [
+    "문의 접수",
+    {
+      zh: "咨询已提交",
+      ja: "お問い合わせ受付",
+      en: "Inquiry received",
+    },
+  ],
+  [
+    "스크린샷 첨부",
+    {
+      zh: "附加截图",
+      ja: "スクリーンショットを添付",
+      en: "Attach screenshot",
+    },
+  ],
+  [
+    "장)",
+    {
+      zh: "张）",
+      ja: "枚）",
+      en: " photos)",
+    },
+  ],
   [
     "— 신고·제재 이력은 재가입을 통한 회피를 막기 위해 필요한 범위에서 최소한으로 보관될 수 있습니다.",
     {
@@ -4588,6 +5532,10 @@ const exactTranslationMap = [...mirilookGeneratedTranslations, ...exactEntries].
   return acc;
 }, {});
 
+// 사전에 없는 문장에만 적용되는 단어 단위 치환(폴백).
+// ⚠️ 1글자 키는 절대 넣지 말 것. 단순 문자열 치환이라 단어 중간까지 걸려
+// "계정" → "계front"("정"→front), "계좌" → "계left" 처럼 원문을 망가뜨린다.
+// (좌/정/우, 내, 장 항목을 이 이유로 제거했다. 2글자 이상만 등록한다.)
 const glossary: Record<Exclude<MirilookLocale, "ko">, Array<[string, string]>> = {
   zh: [
     ["미리룩", "Miri Look"],
@@ -4601,7 +5549,6 @@ const glossary: Record<Exclude<MirilookLocale, "ko">, Array<[string, string]>> =
     ["추천", "推荐"],
     ["결과", "结果"],
     ["사진", "照片"],
-    ["장", "张"],
     ["이미지", "图片"],
     ["업로드", "上传"],
     ["선택", "选择"],
@@ -4634,7 +5581,6 @@ const glossary: Record<Exclude<MirilookLocale, "ko">, Array<[string, string]>> =
     ["영상", "视频"],
     ["준비", "准备"],
     ["재생", "播放"],
-    ["내", "我的"],
     ["얼굴에 어울리는", "适合脸型的"],
     ["올리고", "上传"],
     ["받고", "获取"],
@@ -4644,9 +5590,6 @@ const glossary: Record<Exclude<MirilookLocale, "ko">, Array<[string, string]>> =
     ["여성", "女性"],
     ["남성", "男性"],
     ["회원가입", "注册"],
-    ["좌", "左"],
-    ["정", "正"],
-    ["우", "右"],
     ["다각도", "多角度"],
     ["입력", "输入"],
     ["등록", "注册"],
@@ -4677,7 +5620,6 @@ const glossary: Record<Exclude<MirilookLocale, "ko">, Array<[string, string]>> =
     ["추천", "おすすめ"],
     ["결과", "結果"],
     ["사진", "写真"],
-    ["장", "枚"],
     ["이미지", "画像"],
     ["업로드", "アップロード"],
     ["선택", "選択"],
@@ -4710,7 +5652,6 @@ const glossary: Record<Exclude<MirilookLocale, "ko">, Array<[string, string]>> =
     ["영상", "動画"],
     ["준비", "準備"],
     ["재생", "再生"],
-    ["내", "私の"],
     ["얼굴에 어울리는", "顔に似合う"],
     ["올리고", "アップロード"],
     ["받고", "受け取り"],
@@ -4720,9 +5661,6 @@ const glossary: Record<Exclude<MirilookLocale, "ko">, Array<[string, string]>> =
     ["여성", "女性"],
     ["남성", "男性"],
     ["회원가입", "会員登録"],
-    ["좌", "左"],
-    ["정", "正面"],
-    ["우", "右"],
     ["다각도", "多角度"],
     ["입력", "入力"],
     ["등록", "登録"],
@@ -4785,7 +5723,6 @@ const glossary: Record<Exclude<MirilookLocale, "ko">, Array<[string, string]>> =
     ["영상", "video"],
     ["준비", "ready"],
     ["재생", "play"],
-    ["내", "my"],
     ["얼굴에 어울리는", "that suits your face"],
     ["올리고", "upload"],
     ["받고", "get"],
@@ -4795,9 +5732,6 @@ const glossary: Record<Exclude<MirilookLocale, "ko">, Array<[string, string]>> =
     ["여성", "female"],
     ["남성", "male"],
     ["회원가입", "sign up"],
-    ["좌", "left"],
-    ["정", "front"],
-    ["우", "right"],
     ["다각도", "multi-angle"],
     ["입력", "input"],
     ["등록", "register"],
