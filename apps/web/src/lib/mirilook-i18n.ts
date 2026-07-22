@@ -19,7 +19,7 @@ export const mirilookLocaleOptions: MirilookLocaleOption[] = [
 ];
 
 export const mirilookLocaleStorageKey = "mirilook_locale";
-export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-11";
+export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-12";
 
 type TranslationValue = Record<Exclude<MirilookLocale, "ko">, string>;
 
@@ -27,8 +27,8 @@ const exactEntries: Array<[string, TranslationValue]> = [
   [
     "표시된 외화 금액은 유럽중앙은행 참고환율 기준의 참고값이며, 실제 결제는 원화로 청구됩니다. (환율 기준일",
     {
-      zh: "所显示的外币金额为按欧洲央行参考汇率换算的参考值，实际支付以韩元结算。（汇率基准日",
-      ja: "表示されている外貨金額は欧州中央銀行の参考レートによる参考値であり、実際の決済はウォンで請求されます。（レート基準日",
+      zh: "所显示的外币金额为按欧洲央行参考汇率换算的参考值，实际支付以韩元结算。(汇率基准日",
+      ja: "表示されている外貨金額は欧州中央銀行の参考レートによる参考値であり、実際の決済はウォンで請求されます。(レート基準日",
       en: "Foreign currency amounts are approximate, based on European Central Bank reference rates. You will be charged in KRW. (rate as of",
     },
   ],
