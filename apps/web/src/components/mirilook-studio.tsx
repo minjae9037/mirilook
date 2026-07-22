@@ -45,9 +45,6 @@ import {
 } from "lucide-react";
 import {
   buildCustomHairColorPrompt,
-  getHairColorById,
-  hairColorChartColumns,
-  hairColorChartRows,
   hairColorChoices,
   type HairColorChoice,
 } from "@/lib/mirilook-colors";
@@ -832,10 +829,8 @@ export function MirilookStudio() {
     useState("natural-black");
   // 직접 고르기(색상 휠)로 고른 임의 색. 설정되면 프리셋 대신 이 색을 헤어 컬러로 사용.
   const [customHairColorHex, setCustomHairColorHex] = useState<string | null>(null);
-  const [colorMode, setColorMode] = useState<"palette" | "custom">("custom");
   // 색상 스텝: "적용하기"를 누르기 전 임시 선택값(초안). 적용해야 실제 헤어 컬러로 반영된다.
   const [customColorDraft, setCustomColorDraft] = useState("#a06a3f");
-  const [paletteColorDraft, setPaletteColorDraft] = useState<string | null>(null);
   // 적용 직후 사용자에게 "이 색이 반영됩니다"를 확실히 알리는 배너 문구.
   const [colorAppliedNotice, setColorAppliedNotice] = useState<string | null>(null);
   // 스타일 투표 게시 모달 상태.
@@ -2274,37 +2269,10 @@ export function MirilookStudio() {
     setStatusMessage("선호 스타일이 반영되었습니다. 추천 받기를 눌러주세요.");
   }
 
-  function selectHairColor(colorId: string) {
-    setSelectedHairColorId(colorId);
-    setCustomHairColorHex(null);
-    setColorMode("palette");
-    setAnalysisReady(false);
-    setSelectedStyleId(null);
-    setRenderedResults([]);
-    resetCurrentConsultationIdentity();
-    setShareUrl("");
-    setStatusMessage("헤어 컬러가 반영되었습니다. 추천 받기를 눌러주세요.");
-  }
-
-  // "적용하기"(팔레트): 초안으로 골라둔 프리셋 색을 실제 헤어 컬러로 확정한다.
-  function applyPaletteHairColor() {
-    if (!paletteColorDraft) {
-      setStatusMessage("팔레트에서 원하는 색상을 먼저 선택해 주세요.");
-      return;
-    }
-
-    selectHairColor(paletteColorDraft);
-    const name = getHairColorById(paletteColorDraft)?.name ?? "선택한 색";
-    setColorAppliedNotice(
-      `${name} 컬러가 헤어 컬러로 적용되었습니다. 추천·상담 이미지에 이 색이 반영됩니다.`,
-    );
-  }
-
   // "적용하기"(직접 고르기): 색상 휠 초안 hex를 실제 헤어 컬러로 확정한다.
   function applyCustomHairColor() {
     const hex = customColorDraft.toUpperCase();
     setCustomHairColorHex(hex);
-    setColorMode("custom");
     setAnalysisReady(false);
     setSelectedStyleId(null);
     setRenderedResults([]);
@@ -4440,11 +4408,14 @@ export function MirilookStudio() {
     return frontInputRef;
   }
 
+  // 선택 직후 바로 넘기면 뭘 골랐는지 확인할 새가 없어 화면이 튄 것처럼 느껴진다.
+  // 선택 표시(체크)를 충분히 본 뒤 넘어가도록 여유를 둔다.
+  const stepAdvanceDelayMs = 620;
+
   // 성별 단계는 화면에 선택지 두 개뿐이라, 고르면 곧바로 다음(동의)으로 넘긴다.
-  // 선택 표시(체크)가 보이도록 아주 짧게 지연 — 즉시 이동하면 뭘 골랐는지 안 보인다.
   function selectAudienceAndAdvance(audience: MirilookAudience) {
     selectAudience(audience);
-    window.setTimeout(() => router.push(stepHref("consent")), 220);
+    window.setTimeout(() => router.push(stepHref("consent")), stepAdvanceDelayMs);
   }
 
   // 동의 체크 = 다음 단계로. 체크 해제는 이동하지 않는다.
@@ -4452,7 +4423,7 @@ export function MirilookStudio() {
     setPrivacyAccepted(accepted);
 
     if (accepted) {
-      window.setTimeout(() => router.push(stepHref("photos")), 220);
+      window.setTimeout(() => router.push(stepHref("photos")), stepAdvanceDelayMs);
     }
   }
 
@@ -4918,33 +4889,8 @@ export function MirilookStudio() {
 
       {flowStep === "color" && hasAnyPhoto ? (
         <div className="mt-5 grid gap-5">
-          {/* 색상 선택 방식 토글 — 좌: 직접 고르기(색상 휠) / 우: 팔레트 */}
-          <div className="flex rounded-full border border-[#2b281f] bg-[#0f0e0c] p-1">
-            <button
-              className={`flex-1 rounded-full px-4 py-2 transition ${
-                colorMode === "custom"
-                  ? "bg-[#f3d28a] text-[#171511]"
-                  : "text-[#b8aa95]"
-              }`}
-              onClick={() => setColorMode("custom")}
-              style={{ fontSize: 14, fontWeight: 700 }}
-              type="button"
-            >
-              직접 고르기
-            </button>
-            <button
-              className={`flex-1 rounded-full px-4 py-2 transition ${
-                colorMode === "palette"
-                  ? "bg-[#f3d28a] text-[#171511]"
-                  : "text-[#b8aa95]"
-              }`}
-              onClick={() => setColorMode("palette")}
-              style={{ fontSize: 14, fontWeight: 700 }}
-              type="button"
-            >
-              팔레트 고르기
-            </button>
-          </div>
+          {/* 색상 선택은 색상 휠 하나로 통일. 팔레트 프리셋과 방식 토글은 제거했다
+              — 고르는 길이 두 갈래라 뭘 눌러야 하는지가 오히려 불명확했다. */}
 
           {/* 현재 적용된(=생성에 반영될) 헤어 컬러 배너 — 뭘 고른 건지 항상 명확히 보여준다. */}
           <div
@@ -4974,8 +4920,7 @@ export function MirilookStudio() {
             </p>
           ) : null}
 
-          {colorMode === "custom" ? (
-            <div className="rounded-md border border-[#2b281f] bg-[#171511]/92 p-4">
+          <div className="rounded-md border border-[#2b281f] bg-[#171511]/92 p-4">
               <p className="mb-4 text-sm leading-6 text-[#b8aa95]">
                 휠을 마우스나 손으로 움직여 원하는 색을 고른 뒤, 아래{" "}
                 <span className="font-bold text-[#f3d28a]">적용하기</span>를
@@ -5002,28 +4947,7 @@ export function MirilookStudio() {
               >
                 이 색상으로 적용하기
               </button>
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              <HairColorPanel
-                onSelect={setPaletteColorDraft}
-                selectedColorId={
-                  paletteColorDraft ??
-                  (customHairColorHex ? "" : selectedHairColorId)
-                }
-              />
-              <button
-                className="w-full rounded-md bg-[#f3d28a] px-4 py-3 text-sm font-black text-[#171511] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:bg-[#4a412e] disabled:text-[#b8aa95]"
-                disabled={!paletteColorDraft}
-                onClick={applyPaletteHairColor}
-                type="button"
-              >
-                {paletteColorDraft
-                  ? `${getHairColorById(paletteColorDraft)?.name ?? "선택한 색"} 적용하기`
-                  : "팔레트에서 색을 먼저 선택하세요"}
-              </button>
-            </div>
-          )}
+          </div>
           {showPersonalConsultPanel ? (
             <PersonalConsultPanel
               selectedFocusIds={consultingFocusIds}
@@ -8396,65 +8320,6 @@ function getHairSampleOverlay(hairColorId: string) {
   );
 }
 
-function getHairColorButtonStyle(color: HairColorChoice, selected: boolean) {
-  const swatchRgb = parseHexColor(color.swatch) ?? { b: 40, g: 40, r: 40 };
-  const swatchLuminance = getRelativeLuminance(swatchRgb);
-  const blendTarget =
-    swatchLuminance > 0.5
-      ? { b: 241, g: 250, r: 255 }
-      : { b: 12, g: 14, r: 15 };
-  let backgroundRgb = mixRgb(
-    swatchRgb,
-    blendTarget,
-    swatchLuminance > 0.5 ? 0.32 : 0.22,
-  );
-  let backgroundColor = rgbToHex(backgroundRgb);
-  const lightText = "#fffaf1";
-  const darkText = "#17130e";
-  let textColor =
-    getContrastRatio(backgroundRgb, parseHexColor(darkText) ?? { b: 14, g: 19, r: 23 }) >
-    getContrastRatio(backgroundRgb, parseHexColor(lightText) ?? { b: 241, g: 250, r: 255 })
-      ? darkText
-      : lightText;
-
-  if (
-    getContrastRatio(
-      backgroundRgb,
-      parseHexColor(textColor) ?? { b: 241, g: 250, r: 255 },
-    ) < 4.5
-  ) {
-    backgroundRgb = mixRgb(
-      backgroundRgb,
-      textColor === darkText
-        ? { b: 241, g: 250, r: 255 }
-        : { b: 12, g: 14, r: 15 },
-      0.12,
-    );
-    backgroundColor = rgbToHex(backgroundRgb);
-    textColor =
-      getContrastRatio(backgroundRgb, parseHexColor(darkText) ?? { b: 14, g: 19, r: 23 }) >
-      getContrastRatio(backgroundRgb, parseHexColor(lightText) ?? { b: 241, g: 250, r: 255 })
-        ? darkText
-        : lightText;
-  }
-
-  return {
-    backgroundColor,
-    borderColor: selected
-      ? "#f3d28a"
-      : mixHex(backgroundColor, textColor, 0.34),
-    boxShadow: selected
-      ? "0 0 0 2px rgba(243,210,138,0.34), 0 10px 24px rgba(0,0,0,0.24)"
-      : "inset 0 1px 0 rgba(255,255,255,0.12)",
-    swatchBorderColor: textColor,
-    swatchShadow:
-      textColor === "#17130e"
-        ? "0 0 0 2px rgba(255,255,255,0.45)"
-        : "0 0 0 2px rgba(0,0,0,0.28)",
-    textColor,
-  };
-}
-
 // 이미지 URL(원격/data)을 base64 data URL로 변환 — 투표 게시 전송용.
 async function imageUrlToDataUrl(url: string): Promise<string> {
   const response = await fetch(url);
@@ -8532,111 +8397,6 @@ function getContrastRatio(
   const darker = Math.min(foregroundLuminance, backgroundLuminance);
 
   return (lighter + 0.05) / (darker + 0.05);
-}
-
-function HairColorPanel({
-  onSelect,
-  selectedColorId,
-}: {
-  onSelect: (colorId: string) => void;
-  selectedColorId: string;
-}) {
-  const chartColors = hairColorChoices
-    .filter(
-      (color) =>
-        typeof color.chartColumn === "number" &&
-        typeof color.chartRow === "number",
-    )
-    .sort(
-      (a, b) =>
-        (a.chartRow ?? 0) - (b.chartRow ?? 0) ||
-        (a.chartColumn ?? 0) - (b.chartColumn ?? 0),
-    );
-
-  return (
-    <section className="rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4">
-      <div className="flex items-center gap-2">
-        <Sparkles aria-hidden="true" className="text-[#f3d28a]" size={18} />
-        <h2 className="text-lg font-semibold text-[#fffaf1]">
-          원하는 헤어 컬러
-        </h2>
-      </div>
-      <p className="mt-2 text-sm leading-6 text-[#b8aa95]">
-        염색을 원하면 컬러를 선택하세요. 선택한 컬러가 추천 이미지 전체에 반영됩니다.
-      </p>
-      <div className="mt-4 min-w-0 pb-1">
-        <div
-          className="mirilook-hair-chart grid w-full min-w-0 gap-1 rounded-md border border-white/10 bg-[#080705] p-2 sm:gap-1.5"
-          style={{
-            gridTemplateColumns: `repeat(${hairColorChartColumns.length}, minmax(0, 1fr))`,
-          }}
-        >
-          {hairColorChartColumns.map((column, index) => (
-            <div
-              className="flex min-h-9 items-center justify-center overflow-hidden rounded-sm border border-white/10 px-0.5 text-center text-[8px] font-black leading-3 text-[#fffaf1] sm:px-1 sm:text-[11px] sm:leading-4"
-              key={column.id}
-              style={{
-                backgroundColor: column.tone,
-                gridColumn: index + 1,
-                gridRow: 1,
-              }}
-            >
-              {column.label}
-            </div>
-          ))}
-          {hairColorChartRows.flatMap((row, rowIndex) =>
-            hairColorChartColumns.map((column, columnIndex) => (
-              <div
-                aria-hidden="true"
-                className="min-h-16 rounded-sm border border-white/6 bg-[#100f0d]/72"
-                key={`${row.level}-${column.id}`}
-                style={{
-                  gridColumn: columnIndex + 1,
-                  gridRow: rowIndex + 2,
-                }}
-              />
-            )),
-          )}
-          {chartColors.map((color) => {
-          const selected = color.id === selectedColorId;
-          const buttonStyle = getHairColorButtonStyle(color, selected);
-
-          return (
-            <button
-              className="relative z-10 min-h-16 overflow-hidden rounded-sm border bg-[#171511] p-1 text-center text-[9px] font-black leading-3 text-[#fffaf1] transition hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3d28a]"
-              key={color.id}
-              onClick={() => onSelect(color.id)}
-              style={{
-                backgroundColor: color.swatch,
-                borderColor: selected ? "#fb5c8d" : "rgba(255,255,255,0.16)",
-                borderWidth: selected ? 3 : 1,
-                boxShadow: selected
-                  ? "0 0 0 2px rgba(251,92,141,0.5)"
-                  : buttonStyle.boxShadow,
-                gridColumn: color.chartColumn ?? 1,
-                gridRow: (color.chartRow ?? 1) + 1,
-              }}
-              type="button"
-            >
-              <span className="absolute inset-1 rounded-[3px] border border-white/24 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]" />
-              <span
-                className="absolute bottom-1 left-1 right-1 rounded-[3px] border border-white/28 bg-black/48 px-1 py-0.5 text-center [word-break:keep-all]"
-                style={{
-                  fontSize: 9,
-                  lineHeight: "12px",
-                  textShadow:
-                    "0 0 4px rgba(255,255,255,0.72), 0 0 9px rgba(255,255,255,0.32)",
-                }}
-              >
-                {color.name}
-              </span>
-            </button>
-          );
-        })}
-        </div>
-      </div>
-    </section>
-  );
 }
 
 // 저장 완료 토스트 — 화면 하단 중앙에 잠깐 떴다가 사라진다(2초는 부모가 제어).
