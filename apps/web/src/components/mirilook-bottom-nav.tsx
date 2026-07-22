@@ -10,10 +10,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { useMirilookSession } from "@/lib/mirilook-session";
 
-type TabIcon = typeof Home;
+type TabIcon = typeof Sparkles;
 
 type BottomTab = {
   key: string;
@@ -24,6 +23,9 @@ type BottomTab = {
   // 상시 강조(선택된 것처럼 항상 핑크로 노출)
   pinned?: boolean;
 };
+
+// 미로그인 방문자를 보내는 맛보기 화면. 스튜디오가 블러로 깔리고 가입 CTA가 뜬다.
+const TEASER_HREF = "/studio/gender";
 
 // 하단 내비게이션(모바일 전용). 하트스코어처럼 주요 목적지를 아이콘 탭으로 고정한다.
 const STATIC_TABS: BottomTab[] = [
@@ -67,36 +69,22 @@ const STATIC_TABS: BottomTab[] = [
 
 export function MirilookBottomNav() {
   const pathname = usePathname() ?? "/";
-  const supabase = useMemo(() => getSupabaseBrowserClient(), []);
-  const [isSignedIn, setIsSignedIn] = useState(false);
+  const session = useMirilookSession();
 
-  useEffect(() => {
-    if (!supabase) {
-      return;
-    }
+  // 세션을 확인하기 전에는 그리지 않는다. 자리(높이)는 .ml-app-body가 이미
+  // 비워두고 있어서 나중에 나타나도 본문이 밀리지 않는다.
+  if (session === "unknown") {
+    return null;
+  }
 
-    let mounted = true;
-
-    supabase.auth.getUser().then(({ data }) => {
-      if (mounted) {
-        setIsSignedIn(Boolean(data.user));
-      }
-    });
-
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsSignedIn(Boolean(session?.user));
-    });
-
-    return () => {
-      mounted = false;
-      data.subscription.unsubscribe();
-    };
-  }, [supabase]);
+  if (session === "gated") {
+    return <GatedBottomNav isOnTeaser={pathname.startsWith(TEASER_HREF)} />;
+  }
 
   const myTab: BottomTab = {
     key: "my",
     label: "마이",
-    href: isSignedIn ? "/mypage" : "/login",
+    href: session === "demo" ? "/login" : "/mypage",
     icon: UserRound,
     isActive: (path) =>
       path.startsWith("/mypage") ||
@@ -146,6 +134,72 @@ export function MirilookBottomNav() {
           );
         })}
       </ul>
+    </nav>
+  );
+}
+
+// 미로그인 상태의 하단 바. 탭을 전부 감추고 둘러보기 + 회원가입 유도만 남긴다.
+// 높이를 전체 탭(약 53px)과 비슷하게 맞춰야 .ml-app-body가 비워둔 자리와 어긋나지 않는다.
+//
+// ⚠️ 글자 색·굵기·크기를 className으로 주면 안 된다. globals.css의
+//    `a { color: inherit }` / `button, a, textarea, input { font: inherit }`가
+//    레이어 밖 규칙이라, @layer utilities에 있는 text-white·font-bold·text-[14px]를
+//    특정도와 무관하게 이긴다. 앵커는 인라인 style로만 글자를 지정할 수 있다.
+//
+// 글자 크기는 clamp로 화면 폭에 맞춰 줄인다 — "회원가입하고 시작하기"가 좁은 기기에서
+// 두 줄로 접히지 않게. nowrap이 최후의 방어선.
+function GatedBottomNav({ isOnTeaser }: { isOnTeaser: boolean }) {
+  return (
+    <nav
+      aria-label="주요 메뉴"
+      className="ml-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur"
+      style={{
+        background: "var(--ml-card, #ffffff)",
+        borderColor: "var(--ml-border, rgba(25, 31, 40, 0.12))",
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}
+    >
+      <div className="mx-auto flex max-w-md items-center gap-2 px-3 py-1.5">
+        <Link
+          aria-current={isOnTeaser ? "page" : undefined}
+          className="flex flex-none items-center justify-center gap-1.5 rounded-xl border px-4 py-2.5 transition"
+          href={TEASER_HREF}
+          style={{
+            borderColor: isOnTeaser
+              ? "var(--ml-gold, #ea4a7c)"
+              : "var(--ml-border, rgba(25, 31, 40, 0.12))",
+            color: isOnTeaser
+              ? "var(--ml-gold, #ea4a7c)"
+              : "var(--ml-muted, #5f6b7a)",
+            fontSize: "clamp(12px, 3.4vw, 13px)",
+            fontWeight: 700,
+            // 글자만 줄어들고 누를 수 있는 크기는 유지되게(터치 최소 44px).
+            minHeight: "44px",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <Sparkles
+            aria-hidden="true"
+            size={15}
+            strokeWidth={isOnTeaser ? 2.4 : 2}
+          />
+          둘러보기
+        </Link>
+        <Link
+          className="flex flex-1 items-center justify-center rounded-xl px-4 py-2.5 transition"
+          href="/login?mode=signup"
+          style={{
+            background: "var(--ml-gold, #ea4a7c)",
+            color: "#fff",
+            fontSize: "clamp(12px, 3.6vw, 14px)",
+            fontWeight: 700,
+            minHeight: "44px",
+            whiteSpace: "nowrap",
+          }}
+        >
+          회원가입하고 시작하기
+        </Link>
+      </div>
     </nav>
   );
 }

@@ -903,6 +903,11 @@ export function MirilookStudio() {
   const [isShareCreating, setIsShareCreating] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  // 사진 단계 "다음"에서 잔액이 모자랄 때 띄우는 스토어 팝업(뒤의 사진은 유지).
+  const [photoStepStorePopup, setPhotoStepStorePopup] = useState<{
+    balance: number | null;
+  } | null>(null);
+  const [photoStepBalanceChecking, setPhotoStepBalanceChecking] = useState(false);
   const [consentPopupAction, setConsentPopupAction] =
     useState<ConsentPendingAction | null>(null);
   const [styleMemo, setStyleMemo] = useState("");
@@ -3950,6 +3955,30 @@ export function MirilookStudio() {
     getInputRef(slot).current?.click();
   }
 
+  // 올린 사진 개별 삭제(카드 우측 상단 X). 같은 슬롯에 다시 올릴 수 있어야 하므로
+  // <input type="file">의 value도 비운다 — 같은 파일을 다시 고르면 change가 안 뜬다.
+  function removePhoto(slot: PhotoSlot) {
+    setPhotos((current) => {
+      const previous = current[slot];
+
+      if (previous?.url) {
+        URL.revokeObjectURL(previous.url);
+        createdUrlsRef.current.delete(previous.url);
+      }
+
+      return { ...current, [slot]: null };
+    });
+    setPhotoQuality((current) => ({ ...current, [slot]: null }));
+
+    const input = getInputRef(slot).current;
+
+    if (input) {
+      input.value = "";
+    }
+
+    setStatusMessage(`${getSlotLabel(slot)}을(를) 삭제했습니다. 다시 올릴 수 있어요.`);
+  }
+
   function acceptConsentAndContinueUpload() {
     const targetAction = consentPopupAction;
 
@@ -4411,6 +4440,22 @@ export function MirilookStudio() {
     return frontInputRef;
   }
 
+  // 성별 단계는 화면에 선택지 두 개뿐이라, 고르면 곧바로 다음(동의)으로 넘긴다.
+  // 선택 표시(체크)가 보이도록 아주 짧게 지연 — 즉시 이동하면 뭘 골랐는지 안 보인다.
+  function selectAudienceAndAdvance(audience: MirilookAudience) {
+    selectAudience(audience);
+    window.setTimeout(() => router.push(stepHref("consent")), 220);
+  }
+
+  // 동의 체크 = 다음 단계로. 체크 해제는 이동하지 않는다.
+  function acceptConsentAndAdvance(accepted: boolean) {
+    setPrivacyAccepted(accepted);
+
+    if (accepted) {
+      window.setTimeout(() => router.push(stepHref("photos")), 220);
+    }
+  }
+
   function selectAudience(audience: MirilookAudience) {
     if (audience === selectedAudience) {
       return;
@@ -4486,7 +4531,78 @@ export function MirilookStudio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outfitFullBody.isGenerating]);
 
+  // 사진 단계 "다음"에서 잔액이 모자라면 스토어를 팝업으로 띄운다.
+  // 스튜디오는 layout에 지속 마운트돼 있어, 팝업 뒤의 사진·입력은 그대로 남는다.
+  async function proceedFromPhotos() {
+    const target = stepHref("style");
+
+    setPhotoStepBalanceChecking(true);
+
+    try {
+      const token = await getSupabaseAccessToken();
+
+      // 미로그인은 여기서 막지 않는다 — 추천 실행 시점에 로그인/차감을 서버가 처리한다.
+      if (!token) {
+        router.push(target);
+        return;
+      }
+
+      const response = await fetch("/api/payments/hair-money/", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = (await response.json().catch(() => null)) as {
+        balance?: number;
+      } | null;
+      const balance = typeof data?.balance === "number" ? data.balance : null;
+
+      if (balance !== null && balance < HairMoneyRecommendationCost) {
+        setPhotoStepStorePopup({ balance });
+        return;
+      }
+
+      router.push(target);
+    } catch {
+      // 잔액 조회 실패로 진행을 막지 않는다(추천 요청 시 서버가 다시 검증한다).
+      router.push(target);
+    } finally {
+      setPhotoStepBalanceChecking(false);
+    }
+  }
+
+  // 팝업에서 충전한 뒤 "충전 완료, 계속하기". 잔액을 다시 확인해 충분하면 넘어간다.
+  async function resumeAfterPhotoStepTopUp() {
+    setPhotoStepBalanceChecking(true);
+
+    try {
+      const token = await getSupabaseAccessToken();
+      const response = await fetch("/api/payments/hair-money/", {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const data = (await response.json().catch(() => null)) as {
+        balance?: number;
+      } | null;
+      const balance = typeof data?.balance === "number" ? data.balance : null;
+
+      if (balance !== null && balance < HairMoneyRecommendationCost) {
+        setPhotoStepStorePopup({ balance });
+        setStatusMessage(
+          `아직 Hair Money가 부족합니다. (잔액 ${balance}개 · 추천 1회 ${HairMoneyRecommendationCost}개)`,
+        );
+        return;
+      }
+
+      setPhotoStepStorePopup(null);
+      router.push(stepHref("style"));
+    } catch {
+      setStatusMessage("잔액을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setPhotoStepBalanceChecking(false);
+    }
+  }
+
   const stepCanProceed: Record<StudioStep, boolean> = {
+    gender: true, // 기본값이 항상 있어 막을 이유가 없다.
+    consent: privacyAccepted,
     photos: Boolean(readyPhotos),
     style: true,
     color: true,
@@ -4517,10 +4633,21 @@ export function MirilookStudio() {
         {showNext ? (
           <button
             className="inline-flex h-11 items-center gap-1.5 rounded-md bg-[#f3d28a] px-5 text-sm font-black text-[#1a1712] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:bg-[#6b5b36] disabled:text-[#d8cbb8]"
-            disabled={!stepCanProceed[step]}
-            onClick={() => next && router.push(stepHref(next))}
+            disabled={!stepCanProceed[step] || (step === "photos" && photoStepBalanceChecking)}
+            onClick={() => {
+              // 사진 → 스타일로 넘어갈 때만 Hair Money 잔액을 먼저 확인한다.
+              if (step === "photos") {
+                void proceedFromPhotos();
+                return;
+              }
+
+              if (next) router.push(stepHref(next));
+            }}
             type="button"
           >
+            {step === "photos" && photoStepBalanceChecking ? (
+              <Loader2 aria-hidden="true" className="animate-spin" size={16} />
+            ) : null}
             다음 <ChevronRight size={16} />
           </button>
         ) : (
@@ -4531,7 +4658,7 @@ export function MirilookStudio() {
   };
 
   const summaryRows: Array<[string, string, StudioStep]> = [
-    ["추천 대상", selectedAudience === "female" ? "여성" : "남성", "photos"],
+    ["추천 대상", selectedAudience === "female" ? "여성" : "남성", "gender"],
     [
       "선호 스타일",
       preferredStyleIds.length ? `${preferredStyleIds.length}개 선택` : "자동 추천",
@@ -4581,16 +4708,22 @@ export function MirilookStudio() {
         type="file"
       />
 
-      {flowStep === "photos" ? (
+      {flowStep === "gender" ? (
         <>
           <AudienceSelector
             selectedAudience={selectedAudience}
-            onChange={selectAudience}
+            onChange={selectAudienceAndAdvance}
           />
+          {renderStepNav("gender")}
+        </>
+      ) : null}
+      {flowStep === "consent" ? (
+        <>
           <ConsentNotice
             accepted={privacyAccepted}
-            onChange={setPrivacyAccepted}
+            onChange={acceptConsentAndAdvance}
           />
+          {renderStepNav("consent")}
         </>
       ) : null}
       {consentPopupAction ? (
@@ -4620,6 +4753,15 @@ export function MirilookStudio() {
           styleName={extraConsultationStyle.name}
         />
       ) : null}
+      {photoStepStorePopup ? (
+        <RecommendationTopUpStorePopup
+          balance={photoStepStorePopup.balance}
+          checking={photoStepBalanceChecking}
+          cost={HairMoneyRecommendationCost}
+          onClose={() => setPhotoStepStorePopup(null)}
+          onResume={() => void resumeAfterPhotoStepTopUp()}
+        />
+      ) : null}
       {extraConsultationStore ? (
         <ExtraConsultationStorePopup
           balance={extraConsultationStore.balance}
@@ -4647,6 +4789,7 @@ export function MirilookStudio() {
             quality={photoQuality[item.slot]}
             slot={item.slot}
             onClick={() => requestPhotoUpload(item.slot)}
+            onRemove={() => removePhoto(item.slot)}
           />
         ))}
       </div>
@@ -5985,6 +6128,86 @@ function ExtraConsultationStorePopup({
   );
 }
 
+// 사진 단계 "다음"에서 Hair Money가 모자랄 때 뜨는 충전 팝업.
+// 스튜디오는 layout에 지속 마운트돼 있어 팝업을 닫아도 올린 사진이 그대로 남고,
+// 충전 후 "계속하기"를 누르면 잔액을 다시 확인해 스타일 단계로 넘어간다.
+function RecommendationTopUpStorePopup({
+  balance,
+  checking,
+  cost,
+  onClose,
+  onResume,
+}: {
+  balance: number | null;
+  checking: boolean;
+  cost: number;
+  onClose: () => void;
+  onResume: () => void;
+}) {
+  return (
+    <ViewportCenteredOverlay
+      aria-modal="true"
+      className="bg-black/75"
+      role="dialog"
+    >
+      <section className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-[#c9a96a]/45 bg-[#11100e] shadow-2xl">
+        <header className="flex items-start justify-between gap-3 border-b border-white/10 bg-[#171511] px-5 py-4">
+          <div className="flex items-start gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-[#f3d28a]/50 bg-[#30271a] text-[#f3d28a]">
+              <Sparkles aria-hidden="true" size={22} />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-[#fffaf1]">
+                Hair Money 충전 후 계속하기
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-[#d8cbb8]">
+                스타일 추천 1회에는 Hair Money {cost}개가 필요합니다.
+                {typeof balance === "number"
+                  ? ` 현재 잔액은 ${balance}개입니다.`
+                  : ""}{" "}
+                아래에서 충전하면 지금 올린 사진을 그대로 둔 채 이어서 진행됩니다.
+              </p>
+            </div>
+          </div>
+          <button
+            aria-label="닫기"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-white/12 text-[#d8cbb8] transition hover:border-[#f3d28a]/60 hover:text-[#f3d28a]"
+            onClick={onClose}
+            type="button"
+          >
+            <X aria-hidden="true" size={18} />
+          </button>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+          <MirilookHairMoneyStore />
+        </div>
+        <footer className="flex flex-col gap-2 border-t border-white/10 bg-[#171511] px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
+          <button
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/12 px-5 text-sm font-semibold text-[#e7dccb] transition hover:bg-white/8"
+            onClick={onClose}
+            type="button"
+          >
+            나중에 하기
+          </button>
+          <button
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#f3d28a] px-5 text-sm font-bold text-[#171511] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={checking}
+            onClick={onResume}
+            type="button"
+          >
+            {checking ? (
+              <Loader2 aria-hidden="true" className="animate-spin" size={16} />
+            ) : (
+              <Check aria-hidden="true" size={16} />
+            )}
+            {checking ? "확인 중" : "충전 완료 — 계속하기"}
+          </button>
+        </footer>
+      </section>
+    </ViewportCenteredOverlay>
+  );
+}
+
 function HistorySaveNotice({
   message,
   onClose,
@@ -6183,6 +6406,7 @@ function UploadBox({
   quality,
   slot,
   onClick,
+  onRemove,
 }: {
   audience: MirilookAudience;
   badge: string;
@@ -6192,6 +6416,7 @@ function UploadBox({
   quality?: FaceQualityResult | "analyzing" | null;
   slot: PhotoSlot;
   onClick: () => void;
+  onRemove: () => void;
 }) {
   const guide = slotCaptureGuide[slot];
   const GuideIcon = guide.icon;
@@ -6200,8 +6425,10 @@ function UploadBox({
   }-${slot}.png`;
 
   return (
+    // 삭제(X)는 카드 버튼 안에 넣을 수 없어(버튼 중첩 금지) 형제로 겹쳐 놓는다.
+    <div className="relative flex min-h-0">
     <button
-      className={`min-h-0 overflow-hidden rounded-md border text-left transition ${
+      className={`min-h-0 w-full overflow-hidden rounded-md border text-left transition ${
         photo
           ? "border-[#c9a96a]/65 bg-[#0f0e0c]"
           : "aspect-[3/4] sm:aspect-[4/5] lg:aspect-[3/4] border-dashed border-[#c9a96a]/55 bg-[#0f0e0c]/72 hover:border-[#f3d28a] hover:bg-[#1d1912]/86"
@@ -6233,8 +6460,11 @@ function UploadBox({
           </div>
         </div>
       ) : (
-        <div className="flex h-full flex-col items-center justify-center gap-1.5 p-1.5 text-center sm:gap-2 sm:p-3 lg:gap-4 lg:p-5">
-          <span className="relative flex aspect-square w-[68%] min-w-[3.5rem] max-w-[9rem] shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#c9a96a]/60 bg-white text-[#f3d28a] shadow-[0_0_0_3px_rgba(201,169,106,0.16)]">
+        <div className="flex h-full flex-col items-center justify-center gap-1.5 p-1 text-center sm:gap-2 sm:p-2 lg:gap-3 lg:p-3">
+          {/* 촬영 각도 예시 이미지 — 작아서 못 보고 지나치는 경우가 많아 카드 폭을
+              거의 채우도록 키웠다. 카드 안쪽 여백(p-1~p-3)만 남기므로 옆 카드와
+              간섭하지 않고, max-w는 큰 화면에서 원이 과하게 커지지 않도록 상한만 둔다. */}
+          <span className="relative flex aspect-square w-[94%] min-w-[3.5rem] max-w-[15rem] shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#c9a96a]/60 bg-white text-[#f3d28a] shadow-[0_0_0_3px_rgba(201,169,106,0.16)]">
             <img
               alt={`${label} 예시`}
               aria-hidden="true"
@@ -6269,6 +6499,18 @@ function UploadBox({
         </div>
       )}
     </button>
+      {photo ? (
+        <button
+          aria-label={`${label} 삭제`}
+          className="absolute right-1.5 top-1.5 z-10 inline-flex size-7 items-center justify-center rounded-full border border-white/25 bg-[#11100e]/80 text-[#fff4d7] backdrop-blur-sm transition hover:border-[#ff8fb3] hover:bg-[#c0342f] hover:text-white sm:size-8"
+          onClick={onRemove}
+          title={`${label} 삭제`}
+          type="button"
+        >
+          <X aria-hidden="true" className="size-4" />
+        </button>
+      ) : null}
+    </div>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { AlertTriangle, Moon, Sun } from "lucide-react";
 import { MirilookBrandLogo } from "@/components/mirilook-brand-logo";
 import { MirilookStudio } from "@/components/mirilook-studio";
@@ -10,15 +10,15 @@ import { MirilookStudioTeaser } from "@/components/mirilook-studio-teaser";
 import { useMirilookSession } from "@/lib/mirilook-session";
 import {
   STUDIO_PROGRESS,
+  shouldGuardStudioRefresh,
   stepFromPathname,
   stepHref,
   stepIndex,
-  type StudioStep,
 } from "@/lib/studio-flow";
 
 // 스튜디오 위저드 레이아웃.
 // - 스튜디오를 여기서 "지속 마운트" → 단계(URL)를 바꿔도 상태·생성이 유지된다.
-// - 사진 이후 단계(index>=1)에서는 새로고침/이탈 시 확인 팝업(beforeunload) + 인페이지 안내.
+// - 사진 단계부터는 새로고침/이탈 시 확인 팝업(beforeunload) + 인페이지 안내.
 
 type Theme = "light" | "dark";
 
@@ -54,10 +54,13 @@ function useMirilookTheme(): [Theme, () => void] {
   return [theme, toggle];
 }
 
-// 새로고침/탭닫기 확인창을 띄울 단계(사진 이후 = 입력·생성 데이터가 쌓인 상태).
-function shouldGuardRefresh(step: StudioStep): boolean {
-  return stepIndex(step) >= 1; // style ~ outfit
-}
+// 단계가 바뀔 때 컨텐츠 영역에 재생할 전환 효과.
+// 스튜디오는 layout에 "지속 마운트"돼 있어 key를 바꿔 리마운트할 수 없다(상태·사진이
+// 날아간다). 그래서 DOM은 그대로 두고 래퍼에만 애니메이션을 다시 재생시킨다.
+const STEP_TRANSITION_KEYFRAMES: Keyframe[] = [
+  { opacity: 0, filter: "blur(6px)", transform: "translateY(10px)" },
+  { opacity: 1, filter: "blur(0px)", transform: "translateY(0)" },
+];
 
 export default function StudioLayout({ children }: { children: React.ReactNode }) {
   const [theme, toggleTheme] = useMirilookTheme();
@@ -67,7 +70,25 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
   const session = useMirilookSession();
   // 미로그인이면 스튜디오를 블러 맛보기로만 보여준다(하단 내비 "둘러보기"의 착지점).
   const teasing = session === "gated";
-  const guarded = shouldGuardRefresh(step) && !teasing;
+  const guarded = shouldGuardStudioRefresh(step) && !teasing;
+  const stageRef = useRef<HTMLDivElement | null>(null);
+
+  // 단계(URL)가 바뀌면 컨텐츠가 흐릿하게 떠오르며 나타난다 — 슬라이드 전환 느낌.
+  // 동작 최소화를 켠 사용자에게는 재생하지 않는다.
+  useEffect(() => {
+    const node = stageRef.current;
+
+    if (!node || typeof node.animate !== "function") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const animation = node.animate(STEP_TRANSITION_KEYFRAMES, {
+      duration: 380,
+      easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+      fill: "both",
+    });
+
+    return () => animation.cancel();
+  }, [step]);
 
   // 새로고침/이탈 가드: 브라우저 기본 확인창을 띄운다(문구는 브라우저가 고정 — 인페이지 안내로 보완).
   useEffect(() => {
@@ -164,14 +185,16 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
           </div>
         ) : null}
 
-        {teasing ? (
-          <MirilookStudioTeaser dark={dark} pageBg={pageBg}>
+        <div ref={stageRef}>
+          {teasing ? (
+            <MirilookStudioTeaser dark={dark} pageBg={pageBg}>
+              <MirilookStudio />
+            </MirilookStudioTeaser>
+          ) : (
             <MirilookStudio />
-          </MirilookStudioTeaser>
-        ) : (
-          <MirilookStudio />
-        )}
-        {children}
+          )}
+          {children}
+        </div>
       </div>
     </main>
   );
