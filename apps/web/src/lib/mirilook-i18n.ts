@@ -19,11 +19,37 @@ export const mirilookLocaleOptions: MirilookLocaleOption[] = [
 ];
 
 export const mirilookLocaleStorageKey = "mirilook_locale";
-export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-7";
+export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-8";
 
 type TranslationValue = Record<Exclude<MirilookLocale, "ko">, string>;
 
 const exactEntries: Array<[string, TranslationValue]> = [
+  // 숫자와 붙어 나오는 단위. `{price}원` 같은 JSX는 숫자와 단위가 각각 별도의
+  // 텍스트 노드라 단위만 따로 조회된다. 영어는 앞 숫자와 붙지 않도록 공백을 넣는다.
+  [
+    "원",
+    {
+      zh: "韩元",
+      ja: "ウォン",
+      en: " KRW",
+    },
+  ],
+  [
+    "년",
+    {
+      zh: "年",
+      ja: "年",
+      en: " year",
+    },
+  ],
+  [
+    "년입니다.",
+    {
+      zh: "年。",
+      ja: "年です。",
+      en: " year.",
+    },
+  ],
   [
     "· 개발자:",
     {
