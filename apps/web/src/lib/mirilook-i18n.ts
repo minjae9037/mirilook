@@ -19,7 +19,7 @@ export const mirilookLocaleOptions: MirilookLocaleOption[] = [
 ];
 
 export const mirilookLocaleStorageKey = "mirilook_locale";
-export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-9";
+export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-10";
 
 type TranslationValue = Record<Exclude<MirilookLocale, "ko">, string>;
 
@@ -5725,7 +5725,6 @@ const glossary: Record<Exclude<MirilookLocale, "ko">, Array<[string, string]>> =
     ["추천", "recommendation"],
     ["결과", "result"],
     ["사진", "photo"],
-    ["장", ""],
     ["이미지", "image"],
     ["업로드", "upload"],
     ["선택", "select"],
