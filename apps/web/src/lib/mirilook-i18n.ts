@@ -19,7 +19,7 @@ export const mirilookLocaleOptions: MirilookLocaleOption[] = [
 ];
 
 export const mirilookLocaleStorageKey = "mirilook_locale";
-export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-8";
+export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-9";
 
 type TranslationValue = Record<Exclude<MirilookLocale, "ko">, string>;
 
@@ -32,6 +32,14 @@ const exactEntries: Array<[string, TranslationValue]> = [
       zh: "韩元",
       ja: "ウォン",
       en: " KRW",
+    },
+  ],
+  [
+    "원 VAT 포함 기준",
+    {
+      zh: "韩元（含增值税）",
+      ja: "ウォン（税込基準）",
+      en: " KRW, VAT included",
     },
   ],
   [

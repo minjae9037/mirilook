@@ -427,12 +427,17 @@ export function MirilookHairMoneyStore() {
             <SummaryTile
               label="추천 1회 차감"
               value={`${HairMoneyRecommendationCost} HM`}
-              helper={`${HairMoneyRecommendationPriceKrw.toLocaleString("ko-KR")}원 VAT 포함 기준`}
+              helper={
+                <>
+                  {HairMoneyRecommendationPriceKrw.toLocaleString("ko-KR")}원 VAT
+                  포함 기준
+                </>
+              }
             />
             <SummaryTile
               label="선택 상품"
               value={`${formatHairMoney(selectedProduct?.hairMoneyAmount)} HM`}
-              helper={`${(selectedProduct?.amount ?? 0).toLocaleString("ko-KR")}원`}
+              helper={<>{(selectedProduct?.amount ?? 0).toLocaleString("ko-KR")}원</>}
             />
           </div>
         </section>
@@ -767,7 +772,9 @@ function SummaryTile({
   label,
   value,
 }: {
-  helper?: string;
+  // 숫자를 문자열로 이어붙이면 "55,000원"이 통째로 한 텍스트 노드가 돼
+  // 런타임 번역 사전에 걸리지 않는다. JSX로 받아 단위만 별도 노드로 남긴다.
+  helper?: ReactNode;
   icon?: ReactNode;
   label: string;
   value: string;
