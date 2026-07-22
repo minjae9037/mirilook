@@ -738,10 +738,16 @@ export function MirilookAuthPanel() {
               />
             </label>
 
+            {/* 연회색 버튼이라 배경과 거의 붙어 보여 테두리를 넣는다.
+                (구글 버튼과 같은 방식 — className에 border, 색은 style에서.) */}
             <button
-              className="mt-1 flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-4 text-base font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-1 flex h-14 w-full items-center justify-center gap-2 rounded-2xl border px-4 text-base font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
               disabled={busyAction === mode}
-              style={{ background: "#f2f4f6", color: "#333d4b" }}
+              style={{
+                background: "#f2f4f6",
+                borderColor: "#c9d0d8",
+                color: "#333d4b",
+              }}
               type="submit"
             >
               {busyAction === mode ? (
