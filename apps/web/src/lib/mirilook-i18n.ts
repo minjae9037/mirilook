@@ -19,7 +19,7 @@ export const mirilookLocaleOptions: MirilookLocaleOption[] = [
 ];
 
 export const mirilookLocaleStorageKey = "mirilook_locale";
-export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-12";
+export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-13";
 
 type TranslationValue = Record<Exclude<MirilookLocale, "ko">, string>;
 
@@ -389,9 +389,9 @@ const exactEntries: Array<[string, TranslationValue]> = [
   [
     "같은 원화로 더 많은 Hair Money를 드립니다 — 충전 금액이 클수록 최대 약 26.5%까지 추가 적립됩니다. (1 Hair Money 정가 환산",
     {
-      zh: "以相同的韩元金额提供更多的Hair Money — 充值金额越大，最多可额外获得约26.5%的赠送。（1 Hair Money 原价折算",
-      ja: "同じウォン金額でより多くのHair Moneyを差し上げます — チャージ金額が大きいほど、最大約26.5%まで追加付与されます。（1 Hair Money 正価換算",
-      en: "get more Hair Money for the same amount in KRW — the larger the top-up amount, the more bonus you receive, up to about 26.5% extra. (1 Hair Money at list-price conversion",
+      zh: "以相同的韩元金额提供更多的Hair Money — 充值金额越大，最多可额外获得约26.5%的赠送。(1 Hair Money 原价折算",
+      ja: "同じウォン金額でより多くのHair Moneyを差し上げます — チャージ金額が大きいほど、最大約26.5%まで追加付与されます。(1 Hair Money 正価換算",
+      en: "Get more Hair Money for the same amount in KRW — the larger the top-up amount, the more bonus you receive, up to about 26.5% extra. (1 Hair Money at list-price conversion",
     },
   ],
   [
