@@ -19,11 +19,27 @@ export const mirilookLocaleOptions: MirilookLocaleOption[] = [
 ];
 
 export const mirilookLocaleStorageKey = "mirilook_locale";
-export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-10";
+export const mirilookTranslationCacheVersion = "2026-07-22-generated-dict-11";
 
 type TranslationValue = Record<Exclude<MirilookLocale, "ko">, string>;
 
 const exactEntries: Array<[string, TranslationValue]> = [
+  [
+    "표시된 외화 금액은 유럽중앙은행 참고환율 기준의 참고값이며, 실제 결제는 원화로 청구됩니다. (환율 기준일",
+    {
+      zh: "所显示的外币金额为按欧洲央行参考汇率换算的参考值，实际支付以韩元结算。（汇率基准日",
+      ja: "表示されている外貨金額は欧州中央銀行の参考レートによる参考値であり、実際の決済はウォンで請求されます。（レート基準日",
+      en: "Foreign currency amounts are approximate, based on European Central Bank reference rates. You will be charged in KRW. (rate as of",
+    },
+  ],
+  [
+    "본 문서의 번역본은 이해를 돕기 위한 참고용이며, 법적 효력은 한국어 원문을 기준으로 합니다.",
+    {
+      zh: "本文件的译文仅供参考，法律效力以韩文原文为准。",
+      ja: "本書面の翻訳版は理解を助けるための参考であり、法的効力は韓国語の原文を基準とします。",
+      en: "This translation is provided for convenience only; the Korean original governs and is legally binding.",
+    },
+  ],
   // 숫자와 붙어 나오는 단위. `{price}원` 같은 JSX는 숫자와 단위가 각각 별도의
   // 텍스트 노드라 단위만 따로 조회된다. 영어는 앞 숫자와 붙지 않도록 공백을 넣는다.
   [

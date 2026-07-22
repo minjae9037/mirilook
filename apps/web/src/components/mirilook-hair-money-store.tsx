@@ -42,6 +42,11 @@ import {
   getSupabaseBrowserClient,
 } from "@/lib/supabase-browser";
 import { trackEvent } from "@/lib/mirilook-analytics";
+import {
+  formatApproxForeignPrice,
+  mirilookFxBaseDate,
+} from "@/lib/mirilook-currency";
+import { useMirilookLocale } from "@/lib/use-mirilook-locale";
 
 type HairMoneyLedgerItem = {
   amount: number;
@@ -151,6 +156,13 @@ export function MirilookHairMoneyStore() {
 
   const selectedProduct =
     products.find((product) => product.id === selectedProductId) ?? products[0];
+  // 외화 환산은 문구가 아니라 값이 바뀌는 것이라 DOM 치환으로는 처리할 수 없다.
+  // 언어를 상태로 읽어 해당 통화만 보여준다(한국어면 null → 아예 렌더링 안 함).
+  const locale = useMirilookLocale();
+  const selectedForeignPrice = formatApproxForeignPrice(
+    selectedProduct?.amount ?? 0,
+    locale,
+  );
 
   useEffect(() => {
     void refreshWallet();
@@ -437,7 +449,16 @@ export function MirilookHairMoneyStore() {
             <SummaryTile
               label="선택 상품"
               value={`${formatHairMoney(selectedProduct?.hairMoneyAmount)} HM`}
-              helper={<>{(selectedProduct?.amount ?? 0).toLocaleString("ko-KR")}원</>}
+              helper={
+                <>
+                  {(selectedProduct?.amount ?? 0).toLocaleString("ko-KR")}원
+                  {selectedForeignPrice ? (
+                    <span className="ml-1" data-mirilook-no-translate>
+                      {selectedForeignPrice}
+                    </span>
+                  ) : null}
+                </>
+              }
             />
           </div>
         </section>
@@ -546,6 +567,14 @@ export function MirilookHairMoneyStore() {
                       <span className="text-lg font-bold text-[#f3d28a] sm:text-xl">
                         {product.amount.toLocaleString("ko-KR")}원
                       </span>
+                      {formatApproxForeignPrice(product.amount, locale) ? (
+                        <span
+                          className="w-full text-xs font-semibold text-[#8f826f]"
+                          data-mirilook-no-translate
+                        >
+                          {formatApproxForeignPrice(product.amount, locale)}
+                        </span>
+                      ) : null}
                     </span>
                     <span
                       className={`inline-flex size-7 items-center justify-center rounded-md border ${
@@ -561,6 +590,16 @@ export function MirilookHairMoneyStore() {
               );
             })}
           </div>
+
+          {/* 환산가는 참고값이고 실제 청구는 원화(앱은 스토어 통화)라는 점을
+              가격 바로 아래에서 명확히 해둔다. 한국어 화면에는 뜨지 않는다. */}
+          {selectedForeignPrice ? (
+            <p className="mt-3 text-xs leading-5 text-[#8f826f]">
+              표시된 외화 금액은 유럽중앙은행 참고환율 기준의 참고값이며, 실제
+              결제는 원화로 청구됩니다. (환율 기준일{" "}
+              <span data-mirilook-no-translate>{mirilookFxBaseDate}</span>)
+            </p>
+          ) : null}
         </section>
 
         <LedgerSection ledger={wallet.ledger ?? []} />
@@ -609,6 +648,14 @@ export function MirilookHairMoneyStore() {
             {(selectedProduct?.amount ?? 0).toLocaleString("ko-KR")}원 ·{" "}
             {formatHairMoney(selectedProduct?.hairMoneyAmount)} Hair Money
           </p>
+          {selectedForeignPrice ? (
+            <p
+              className="mt-0.5 text-xs font-semibold text-[#b8aa95]"
+              data-mirilook-no-translate
+            >
+              {selectedForeignPrice}
+            </p>
+          ) : null}
         </div>
 
         {/* isReady 전에는 웹/앱 분기가 확정되지 않는다(SSR HTML은 항상 웹 모드).
